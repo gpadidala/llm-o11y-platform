@@ -1,0 +1,172 @@
+# =============================================================================
+# LLM Observability Platform - Docker Compose Stack
+# =============================================================================
+# Full Grafana LGTM stack (Loki, Grafana, Tempo, Prometheus) with
+# OpenTelemetry Collector for monitoring LLM API calls and MCP tool invocations.
+#
+# Usage:
+#   cp .env.example .env   # fill in your API keys
+#   docker compose up -d
+#   open http://localhost:3000  (Grafana, admin / llm-o11y)
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Gateway - FastAPI LLM Proxy
+  # ---------------------------------------------------------------------------
+  # The application entry point. All LLM requests are proxied through this
+  # service, which emits traces, metrics, and logs via OTLP to the collector.
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-o11y-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=llm-o11y-gateway
+      - OTEL_RESOURCE_ATTRIBUTES=service.namespace=llm-o11y,deployment.environment=local
+      - GATEWAY_PORT=8080
+    env_file:
+      - .env
+    depends_on:
+      otel-collector:
+        condition: service_started
+    networks:
+      - llm-o11y
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector
+  # ---------------------------------------------------------------------------
+  # Central telemetry pipeline. Receives OTLP from the gateway and routes
+  # traces to Tempo, metrics to Prometheus, and logs to Loki.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: llm-o11y-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # Collector metrics (Prometheus scrape target)
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      - tempo
+      - prometheus
+      - loki
+    networks:
+      - llm-o11y
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Grafana Tempo - Distributed Tracing
+  # ---------------------------------------------------------------------------
+  # Stores and queries traces. Receives OTLP from the collector and generates
+  # service graph metrics that are pushed to Prometheus.
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: llm-o11y-tempo
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    ports:
+      - "3202:3200"   # Tempo HTTP API
+    volumes:
+      - ./tempo-config.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/tmp/tempo
+    networks:
+      - llm-o11y
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Prometheus - Metrics
+  # ---------------------------------------------------------------------------
+  # Scrapes metrics from the gateway, collector, and itself. Also receives
+  # remote-write data from the OTel Collector and Tempo metrics generator.
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: llm-o11y-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yaml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-remote-write-receiver"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - llm-o11y
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Grafana Loki - Log Aggregation
+  # ---------------------------------------------------------------------------
+  # Collects structured logs emitted by the gateway via the OTel Collector.
+  loki:
+    image: grafana/loki:2.9.6
+    container_name: llm-o11y-loki
+    command: ["-config.file=/etc/loki/config.yaml"]
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - llm-o11y
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Grafana - Dashboards & Visualization
+  # ---------------------------------------------------------------------------
+  # Pre-provisioned with datasources for Tempo, Prometheus, and Loki.
+  # Dashboards for LLM call latency, token usage, and MCP tool invocations
+  # are auto-loaded from the mounted dashboards directory.
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: llm-o11y-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=llm-o11y
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_INSTALL_PLUGINS=
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor tempoSearch tempoServiceGraph
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    networks:
+      - llm-o11y
+    restart: unless-stopped
+
+# =============================================================================
+# Named Volumes - Persistent data across restarts
+# =============================================================================
+volumes:
+  tempo-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  loki-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  llm-o11y:
+    name: llm-o11y
+    driver: bridge

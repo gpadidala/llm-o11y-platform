@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+{% set active_page = "settings" %}
+
+{% block title %}Settings - LLM O11y Platform{% endblock %}
+{% block header_title %}Settings{% endblock %}
+
+{% block extra_styles %}
+.provider-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.provider-card:hover {
+    border-color: rgba(168, 85, 247, 0.2);
+    box-shadow: var(--shadow-sm);
+}
+
+.provider-card-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+}
+
+.provider-card-header:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.provider-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.provider-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+}
+
+.provider-badge.openai { background: linear-gradient(135deg, #10a37f, #1a7f5a); }
+.provider-badge.azure { background: linear-gradient(135deg, #0078d4, #005a9e); }
+.provider-badge.anthropic { background: linear-gradient(135deg, #d4a574, #c4956c); }
+.provider-badge.vertex { background: linear-gradient(135deg, #4285f4, #34a853); }
+.provider-badge.bedrock { background: linear-gradient(135deg, #ff9900, #ec7211); }
+.provider-badge.cohere { background: linear-gradient(135deg, #6e3ff5, #5429d6); }
+
+.provider-name {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.provider-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.provider-card-header .chevron {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    transition: var(--transition);
+}
+
+.provider-card.expanded .chevron {
+    transform: rotate(180deg);
+}
+
+.provider-card-body {
+    padding: 0 20px 20px 20px;
+    display: none;
+    border-top: 1px solid var(--border-color);
+    padding-top: 20px;
+}
+
+.provider-card.expanded .provider-card-body {
+    display: block;
+}
+
+/* Accent top border per provider */
+.provider-card.openai { border-top: 3px solid #10a37f; }
+.provider-card.azure { border-top: 3px solid #0078d4; }
+.provider-card.anthropic { border-top: 3px solid #d4a574; }
+.provider-card.vertex { border-top: 3px solid #4285f4; }
+.provider-card.bedrock { border-top: 3px solid #ff9900; }
+.provider-card.cohere { border-top: 3px solid #6e3ff5; }
+
+/* MCP Server Cards */
+.mcp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--teal);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: var(--transition);
+    position: relative;
+}
+
+.mcp-card:hover {
+    border-color: var(--teal);
+    background: var(--bg-card-hover);
+}
+
+.mcp-card .remove-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: var(--transition);
+    padding: 4px;
+    line-height: 1;
+}
+
+.mcp-card .remove-btn:hover {
+    color: var(--coral);
+}
+
+.mcp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.mcp-number {
+    background: rgba(20, 184, 166, 0.15);
+    color: var(--teal);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* Gateway Settings */
+.gateway-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-top: 3px solid var(--blue);
+    border-radius: var(--radius);
+    padding: 24px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.save-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    padding: 16px 0;
+    margin: 0 -32px -32px;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    z-index: 5;
+}
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Settings</h1>
+<p class="page-subtitle">Configure LLM providers, MCP servers, and gateway parameters.</p>
+
+<form id="settings-form" onsubmit="return false;">
+    <!-- LLM Provider Configuration -->
+    <div class="section">
+        <div class="section-title">
+            <span class="accent-bar accent-purple"></span>
+            LLM Provider Configuration
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- OpenAI -->
+            <div class="provider-card openai expanded" id="card-openai">
+                <div class="provider-card-header" onclick="toggleProvider('card-openai')">
+                    <div class="provider-info">
+                        <div class="provider-badge openai">OA</div>
+                        <div>
+                            <div class="provider-name">OpenAI</div>
+                            <div class="provider-desc">GPT-4o, GPT-4, GPT-3.5 Turbo</div>
+                        </div>
+                    </div>
+                    <span class="chevron">&#x25BC;</span>
+                </div>
+                <div class="provider-card-body">
+                    <div class="form-group">
+                        <label class="form-label">API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-input" name="openai_api_key" placeholder="sk-..." autocomplete="off">
+                            <button type="button" class="input-toggle-btn" onclick="togglePassword(this)">&#x1F441;</button>
+                        </div>
+                        <div class="form-hint">Your OpenAI API key from platform.openai.com</div>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label">Default Model</label>
+                        <select class="form-select" name="openai_model">
+                            <option value="gpt-4o">gpt-4o</option>
+                            <option value="gpt-4o-mini">gpt-4o-mini</option>
+                            <option value="gpt-4-turbo">gpt-4-turbo</option>
+                            <option value="gpt-4">gpt-4</option>
+                            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Azure OpenAI -->
+            <div class="provider-card azure" id="card-azure">
+                <div class="provider-card-header" onclick="toggleProvider('card-azure')">
+                    <div class="provider-info">
+                        <div class="provider-badge azure">Az</div>
+                        <div>
+                            <div class="provider-name">Azure OpenAI</div>
+                            <div class="provider-desc">Enterprise-grade OpenAI models</div>
+                        </div>
+                    </div>
+                    <span class="chevron">&#x25BC;</span>
+                </div>
+                <div class="provider-card-body">
+                    <div class="form-group">
+                        <label class="form-label">API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-input" name="azure_openai_api_key" placeholder="your-azure-key" autocomplete="off">
+                            <button type="button" class="input-toggle-btn" onclick="togglePassword(this)">&#x1F441;</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Endpoint URL</label>
+                        <input type="url" class="form-input" name="azure_openai_endpoint" placeholder="https://your-resource.openai.azure.com">
+                        <div class="form-hint">Your Azure OpenAI resource endpoint</div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group mb-0">
+                            <label class="form-label">API Version</label>
+                            <input type="text" class="form-input" name="azure_openai_api_version" placeholder="2024-02-01" value="2024-02-01">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label">Deployment Name</label>
+                            <input type="text" class="form-input" name="azure_openai_deployment" placeholder="my-gpt4-deployment">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Anthropic -->
+            <div class="provider-card anthropic" id="card-anthropic">
+                <div class="provider-card-header" onclick="toggleProvider('card-anthropic')">
+                    <div class="provider-info">
+                        <div class="provider-badge anthropic">An</div>
+                        <div>
+                            <div class="provider-name">Anthropic</div>
+                            <div class="provider-desc">Claude 3.5 Sonnet, Claude 3 Opus, Haiku</div>
+                        </div>
+                    </div>
+                    <span class="chevron">&#x25BC;</span>
+                </div>
+                <div class="provider-card-body">
+                    <div class="form-group mb-0">
+                        <label class="form-label">API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-input" name="anthropic_api_key" placeholder="sk-ant-..." autocomplete="off">
+                            <button type="button" class="input-toggle-btn" onclick="togglePassword(this)">&#x1F441;</button>
+                        </div>
+                        <div class="form-hint">Your Anthropic API key from console.anthropic.com</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Google Vertex AI -->
+            <div class="provider-card vertex" id="card-vertex">
+                <div class="provider-card-header" onclick="toggleProvider('card-vertex')">
+                    <div class="provider-info">
+                        <div class="provider-badge vertex">GC</div>
+                        <div>
+                            <div class="provider-name">Google Vertex AI</div>
+                            <div class="provider-desc">Gemini Pro, Gemini Ultra</div>
+                        </div>
+                    </div>
+                    <span class="chevron">&#x25BC;</span>
+                </div>
+                <div class="provider-card-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Project ID</label>
+                            <input type="text" class="form-input" name="vertex_project_id" placeholder="my-gcp-project">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Location</label>
+                            <select class="form-select" name="vertex_location">
+                                <option value="us-central1">us-central1</option>
+                                <option value="us-east1">us-east1</option>
+                                <option value="us-west1">us-west1</option>
+                                <option value="europe-west1">europe-west1</option>
+                                <option value="europe-west4">europe-west4</option>
+                                <option value="asia-east1">asia-east1</option>
+                                <option value="asia-northeast1">asia-northeast1</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label">Service Account JSON Path</label>
+                        <input type="text" class="form-input" name="google_application_credentials" placeholder="/path/to/service-account.json">
+                        <div class="form-hint">Path to your Google Cloud service account key file</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AWS Bedrock -->
+            <div class="provider-card bedrock" id="card-bedrock">
+                <div class="provider-card-header" onclick="toggleProvider('card-bedrock')">
+                    <div class="provider-info">
+                        <div class="provider-badge bedrock">BR</div>
+                        <div>
+                            <div class="provider-name">AWS Bedrock</div>
+                            <div class="provider-desc">Claude, Titan, Llama via AWS</div>
+                        </div>
+                    </div>
+                    <span class="chevron">&#x25BC;</span>
+                </div>
+                <div class="provider-card-body">
+                    <div class="form-group">
+                        <label class="form-label">Access Key ID</label>
+                        <div class="input-group">
+                            <input type="password" class="form-input" name="aws_access_key_id" placeholder="AKIA..." autocomplete="off">
+                            <button type="button" class="input-toggle-btn" onclick="togglePassword(this)">&#x1F441;</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Secret Access Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-input" name="aws_secret_access_key" placeholder="your-secret-key" autocomplete="off">
+                            <button type="button" class="input-toggle-btn" onclick="togglePassword(this)">&#x1F441;</button>
+                        </div>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label">Region</label>
+                        <select class="form-select" name="aws_region">
+                            <option value="us-east-1">us-east-1 (N. Virginia)</option>
+                            <option value="us-west-2">us-west-2 (Oregon)</option>
+                            <option value="eu-west-1">eu-west-1 (Ireland)</option>
+                            <option value="eu-central-1">eu-central-1 (Frankfurt)</option>
+                            <option value="ap-northeast-1">ap-northeast-1 (Tokyo)</option>
+                            <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cohere -->
+            <div class="provider-card cohere" id="card-cohere">
+                <div class="provider-card-header" onclick="toggleProvider('card-cohere')">
+                    <div class="provider-info">
+                        <div class="provider-badge cohere">Co</div>
+                        <div>
+                            <div class="provider-name">Cohere</div>
+                            <div class="provider-desc">Command R+, Embed, Rerank</div>
+                        </div>
+                    </div>
+                    <span class="chevron">&#x25BC;</span>
+                </div>
+                <div class="provider-card-body">
+                    <div class="form-group mb-0">
+                        <label class="form-label">API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-input" name="cohere_api_key" placeholder="your-cohere-key" autocomplete="off">
+                            <button type="button" class="input-toggle-btn" onclick="togglePassword(this)">&#x1F441;</button>
+                        </div>
+                        <div class="form-hint">Your Cohere API key from dashboard.cohere.com</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MCP Server Configuration -->
+    <div class="section">
+        <div class="section-title">
+            <span class="accent-bar accent-teal"></span>
+            MCP Server Configuration
+        </div>
+        <div id="mcp-servers" style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- MCP servers will be added dynamically -->
+        </div>
+        <div class="mt-16">
+            <button type="button" class="btn btn-secondary" onclick="addMcpServer()">
+                &#x2795; Add MCP Server
+            </button>
+        </div>
+    </div>
+
+    <!-- Gateway Settings -->
+    <div class="section">
+        <div class="section-title">
+            <span class="accent-bar accent-blue"></span>
+            Gateway Settings
+        </div>
+        <div class="gateway-card">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Gateway Port</label>
+                    <input type="number" class="form-input" name="gateway_port" placeholder="8080" value="8080" min="1" max="65535">
+                    <div class="form-hint">Port for the gateway HTTP server</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Log Level</label>
+                    <select class="form-select" name="log_level">
+                        <option value="debug">Debug</option>
+                        <option value="info" selected>Info</option>
+                        <option value="warning">Warning</option>
+                        <option value="error">Error</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">OTel Exporter Endpoint</label>
+                    <input type="text" class="form-input" name="otel_exporter_otlp_endpoint" placeholder="http://localhost:4317" value="http://localhost:4317">
+                    <div class="form-hint">OpenTelemetry Collector gRPC endpoint</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Bar -->
+    <div class="save-bar">
+        <span class="text-sm text-muted" id="save-status"></span>
+        <button type="button" class="btn btn-secondary" onclick="loadSettings()">&#x21BB; Reset</button>
+        <button type="button" class="btn btn-primary btn-lg" onclick="saveSettings()">
+            &#x1F4BE; Save Configuration
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Load settings on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        loadSettings();
+    });
+
+    function toggleProvider(cardId) {
+        const card = document.getElementById(cardId);
+        card.classList.toggle('expanded');
+    }
+</script>
+{% endblock %}

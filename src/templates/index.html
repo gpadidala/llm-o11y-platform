@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% set active_page = "dashboard" %}
+
+{% block title %}Dashboard - LLM O11y Platform{% endblock %}
+{% block header_title %}Dashboard{% endblock %}
+
+{% block extra_styles %}
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.activity-item:last-child { border-bottom: none; }
+
+.activity-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.activity-icon.req { background: rgba(168, 85, 247, 0.15); }
+.activity-icon.mcp { background: rgba(20, 184, 166, 0.15); }
+.activity-icon.err { background: rgba(244, 63, 94, 0.15); }
+
+.activity-text { flex: 1; }
+.activity-title { font-size: 0.9rem; font-weight: 500; }
+.activity-time { font-size: 0.75rem; color: var(--text-muted); }
+
+.service-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.service-row:last-child { border-bottom: none; }
+
+.service-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.service-name { font-weight: 600; font-size: 0.9rem; }
+
+.service-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.quick-link-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+.quick-link-card:hover {
+    background: var(--bg-card-hover);
+    border-color: rgba(168, 85, 247, 0.3);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.quick-link-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.quick-link-text { flex: 1; }
+.quick-link-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+.quick-link-desc { font-size: 0.8rem; color: var(--text-secondary); }
+.quick-link-arrow { font-size: 1.2rem; color: var(--text-muted); }
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Dashboard</h1>
+<p class="page-subtitle">Monitor your LLM gateway, track requests, and observe performance in real-time.</p>
+
+<!-- Hero Stats Row -->
+<div class="stat-grid">
+    <div class="stat-card purple">
+        <div class="stat-icon">&#x1F4E8;</div>
+        <div class="stat-value" id="stat-total-requests">--</div>
+        <div class="stat-label">Total Requests</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-icon">&#x1F916;</div>
+        <div class="stat-value" id="stat-active-models">--</div>
+        <div class="stat-label">Active Models</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon">&#x1F4B2;</div>
+        <div class="stat-value" id="stat-total-cost">--</div>
+        <div class="stat-label">Total Cost (est.)</div>
+    </div>
+    <div class="stat-card coral">
+        <div class="stat-icon">&#x26A0;&#xFE0F;</div>
+        <div class="stat-value" id="stat-error-rate">--</div>
+        <div class="stat-label">Error Rate</div>
+    </div>
+</div>
+
+<!-- Quick Links to Grafana -->
+<div class="section">
+    <div class="section-title"><span class="accent-bar accent-purple"></span> Quick Links</div>
+    <div class="grid-3">
+        <a href="http://localhost:3000/d/llm-overview" class="quick-link-card" target="_blank">
+            <div class="quick-link-icon" style="background: rgba(168, 85, 247, 0.15);">&#x1F4CA;</div>
+            <div class="quick-link-text">
+                <div class="quick-link-title">Overview Dashboard</div>
+                <div class="quick-link-desc">Request rates, latency, and provider health</div>
+            </div>
+            <span class="quick-link-arrow">&#x2197;</span>
+        </a>
+        <a href="http://localhost:3000/d/llm-costs" class="quick-link-card" target="_blank">
+            <div class="quick-link-icon" style="background: rgba(34, 197, 94, 0.15);">&#x1F4B0;</div>
+            <div class="quick-link-text">
+                <div class="quick-link-title">Cost & Tokens</div>
+                <div class="quick-link-desc">Token usage, cost breakdown by provider</div>
+            </div>
+            <span class="quick-link-arrow">&#x2197;</span>
+        </a>
+        <a href="http://localhost:3000/d/llm-traces" class="quick-link-card" target="_blank">
+            <div class="quick-link-icon" style="background: rgba(59, 130, 246, 0.15);">&#x1F50D;</div>
+            <div class="quick-link-text">
+                <div class="quick-link-title">Trace Explorer</div>
+                <div class="quick-link-desc">End-to-end distributed traces via Tempo</div>
+            </div>
+            <span class="quick-link-arrow">&#x2197;</span>
+        </a>
+    </div>
+</div>
+
+<!-- Two Column: Activity Feed + Service Status -->
+<div class="grid-2">
+    <!-- Recent Activity -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">&#x1F4DD; Recent Activity</span>
+            <span class="text-sm text-muted">Last 24h</span>
+        </div>
+        <div id="activity-feed">
+            <div class="activity-item">
+                <div class="activity-icon req">&#x1F4E8;</div>
+                <div class="activity-text">
+                    <div class="activity-title">Chat completion via OpenAI gpt-4o</div>
+                    <div class="activity-time">2 minutes ago -- 1,240 tokens -- 0.84s</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon mcp">&#x1F527;</div>
+                <div class="activity-text">
+                    <div class="activity-title">MCP tool call: search_documents</div>
+                    <div class="activity-time">5 minutes ago -- 320ms latency</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon req">&#x1F4E8;</div>
+                <div class="activity-text">
+                    <div class="activity-title">Chat completion via Anthropic claude-3.5-sonnet</div>
+                    <div class="activity-time">8 minutes ago -- 2,100 tokens -- 1.2s</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon err">&#x274C;</div>
+                <div class="activity-text">
+                    <div class="activity-title">Rate limit error on Azure OpenAI</div>
+                    <div class="activity-time">15 minutes ago -- HTTP 429</div>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon mcp">&#x1F527;</div>
+                <div class="activity-text">
+                    <div class="activity-title">MCP tool call: code_interpreter</div>
+                    <div class="activity-time">22 minutes ago -- 540ms latency</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Status -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">&#x1F6E0;&#xFE0F; Service Health</span>
+            <button class="btn btn-sm btn-secondary" onclick="pollServiceHealth()">&#x21BB; Refresh</button>
+        </div>
+        <div id="service-status">
+            <div class="service-row" data-service="gateway">
+                <div class="service-info">
+                    <span class="status-dot unknown" id="status-gateway"></span>
+                    <span class="service-name">Gateway</span>
+                </div>
+                <span class="service-meta" id="meta-gateway">Checking...</span>
+            </div>
+            <div class="service-row" data-service="otel_collector">
+                <div class="service-info">
+                    <span class="status-dot unknown" id="status-otel_collector"></span>
+                    <span class="service-name">OTel Collector</span>
+                </div>
+                <span class="service-meta" id="meta-otel_collector">Checking...</span>
+            </div>
+            <div class="service-row" data-service="tempo">
+                <div class="service-info">
+                    <span class="status-dot unknown" id="status-tempo"></span>
+                    <span class="service-name">Tempo</span>
+                </div>
+                <span class="service-meta" id="meta-tempo">Checking...</span>
+            </div>
+            <div class="service-row" data-service="prometheus">
+                <div class="service-info">
+                    <span class="status-dot unknown" id="status-prometheus"></span>
+                    <span class="service-name">Prometheus</span>
+                </div>
+                <span class="service-meta" id="meta-prometheus">Checking...</span>
+            </div>
+            <div class="service-row" data-service="loki">
+                <div class="service-info">
+                    <span class="status-dot unknown" id="status-loki"></span>
+                    <span class="service-name">Loki</span>
+                </div>
+                <span class="service-meta" id="meta-loki">Checking...</span>
+            </div>
+            <div class="service-row" data-service="grafana">
+                <div class="service-info">
+                    <span class="status-dot unknown" id="status-grafana"></span>
+                    <span class="service-name">Grafana</span>
+                </div>
+                <span class="service-meta" id="meta-grafana">Checking...</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Poll service health on load
+    document.addEventListener('DOMContentLoaded', () => {
+        pollServiceHealth();
+        loadDashboardStats();
+        // Refresh every 30 seconds
+        setInterval(pollServiceHealth, 30000);
+    });
+
+    async function loadDashboardStats() {
+        // Placeholder stats - in production these would come from the metrics API
+        document.getElementById('stat-total-requests').textContent = '12,847';
+        document.getElementById('stat-active-models').textContent = '6';
+        document.getElementById('stat-total-cost').textContent = '$42.38';
+        document.getElementById('stat-error-rate').textContent = '0.3%';
+    }
+</script>
+{% endblock %}

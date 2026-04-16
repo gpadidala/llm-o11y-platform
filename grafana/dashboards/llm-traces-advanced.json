@@ -1,0 +1,558 @@
+{
+  "uid": "llm-traces-advanced",
+  "title": "LLM O11y — Advanced Traces",
+  "description": "Advanced trace analysis: span metrics, service graphs, trace-log correlation, and error investigation for LLM operations.",
+  "tags": ["llm", "observability", "traces", "tempo", "advanced"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "",
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "templating": {
+    "list": [
+      {
+        "name": "provider",
+        "type": "query",
+        "label": "Provider",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(llm_requests_total, provider)",
+        "query": {
+          "query": "label_values(llm_requests_total, provider)",
+          "refId": "StandardVariableQuery"
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "model",
+        "type": "query",
+        "label": "Model",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(llm_requests_total{provider=~\"$provider\"}, model)",
+        "query": {
+          "query": "label_values(llm_requests_total{provider=~\"$provider\"}, model)",
+          "refId": "StandardVariableQuery"
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "status",
+        "type": "custom",
+        "label": "Status",
+        "query": "success,error",
+        "multi": false,
+        "includeAll": true,
+        "allValue": "",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "options": [
+          { "text": "All", "value": "$__all", "selected": true },
+          { "text": "success", "value": "success", "selected": false },
+          { "text": "error", "value": "error", "selected": false }
+        ]
+      },
+      {
+        "name": "min_duration",
+        "type": "textbox",
+        "label": "Min Duration",
+        "description": "Minimum span duration filter (e.g. 100ms, 1s, 2s)",
+        "current": { "selected": false, "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Trace Analysis",
+      "id": 1,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 2,
+      "title": "Trace Count by Operation",
+      "description": "Number of traces grouped by span name/operation from Tempo span metrics.",
+      "type": "barchart",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "fillOpacity": 80,
+            "gradientMode": "scheme",
+            "lineWidth": 1
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.8,
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "xTickLabelRotation": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "topk(10, sum by (span_name) (increase(traces_spanmetrics_calls_total[$__range])))",
+          "legendFormat": "{{span_name}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Trace Duration Distribution",
+      "description": "Distribution of trace durations from span metrics histogram buckets.",
+      "type": "histogram",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "bucketSize": "",
+        "combine": false,
+        "fillOpacity": 80,
+        "gradientMode": "scheme",
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (le) (increase(traces_spanmetrics_latency_bucket[$__range]))",
+          "legendFormat": "{{le}}",
+          "format": "heatmap"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Slowest Traces",
+      "description": "Top traces sorted by duration descending. Click trace ID to view full trace.",
+      "type": "table",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "filterable": true },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "traceID" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View Trace",
+                    "url": "/explore?orgId=1&left={\"datasource\":\"tempo\",\"queries\":[{\"refId\":\"A\",\"datasource\":{\"type\":\"tempo\",\"uid\":\"tempo\"},\"queryType\":\"traceql\",\"query\":\"${__value.raw}\"}],\"range\":{\"from\":\"now-1h\",\"to\":\"now\"}}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "traceDuration" },
+            "properties": [
+              { "id": "unit", "value": "ms" },
+              { "id": "displayName", "value": "Duration" }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Duration" }],
+        "footer": { "enablePagination": true }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceqlSearch",
+          "limit": 20,
+          "tableType": "traces",
+          "filters": [
+            {
+              "id": "min-duration",
+              "scope": "span",
+              "tag": "duration",
+              "operator": ">",
+              "value": ["$min_duration"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Error Traces",
+      "description": "Traces with error status, sorted by duration. Click to investigate failures.",
+      "type": "table",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "filterable": true },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "traceID" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View Trace",
+                    "url": "/explore?orgId=1&left={\"datasource\":\"tempo\",\"queries\":[{\"refId\":\"A\",\"datasource\":{\"type\":\"tempo\",\"uid\":\"tempo\"},\"queryType\":\"traceql\",\"query\":\"${__value.raw}\"}],\"range\":{\"from\":\"now-1h\",\"to\":\"now\"}}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "traceDuration" },
+            "properties": [
+              { "id": "unit", "value": "ms" },
+              { "id": "displayName", "value": "Duration" }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Duration" }],
+        "footer": { "enablePagination": true }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceqlSearch",
+          "limit": 20,
+          "tableType": "traces",
+          "filters": [
+            {
+              "id": "status",
+              "scope": "span",
+              "tag": "status",
+              "operator": "=",
+              "value": ["error"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Service Map",
+      "id": 10,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 19 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 11,
+      "title": "Service Graph",
+      "description": "Service dependency graph generated from Tempo trace data. Shows request flow between services.",
+      "type": "nodeGraph",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 20 },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "serviceMap",
+          "query": "{}",
+          "limit": 50
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Correlation",
+      "id": 20,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 21,
+      "title": "Span Latency by Service",
+      "description": "Span-level latency percentiles from Tempo span metrics, grouped by service.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "P50",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.50, sum by (le, service) (rate(traces_spanmetrics_latency_bucket[$__rate_interval])))",
+          "legendFormat": "{{service}} P50"
+        },
+        {
+          "refId": "P95",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(traces_spanmetrics_latency_bucket[$__rate_interval])))",
+          "legendFormat": "{{service}} P95"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "Traces with Correlated Logs",
+      "description": "Search for traces and view correlated logs. Use trace IDs from other panels.",
+      "type": "traces",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceqlSearch",
+          "limit": 10,
+          "filters": [
+            {
+              "id": "min-duration",
+              "scope": "span",
+              "tag": "duration",
+              "operator": ">",
+              "value": ["$min_duration"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "Recent Error Logs (LLM Gateway)",
+      "description": "Recent error-level logs from the llm-o11y-gateway service via Loki.",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 41 },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{service_name=~\"llm-o11y.*\"} |= \"level=error\" or {service_name=~\"llm-o11y.*\"} | json | level=\"error\"",
+          "legendFormat": ""
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "Span Throughput by Operation",
+      "description": "Span call rate over time grouped by operation from Tempo span metrics.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 51 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "spans/s",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total[$__rate_interval]))",
+          "legendFormat": "{{span_name}}"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "title": "Span Error Rate by Operation",
+      "description": "Error rate for spans grouped by operation name.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 51 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "%",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * sum by (span_name) (rate(traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\"}[$__rate_interval])) / clamp_min(sum by (span_name) (rate(traces_spanmetrics_calls_total[$__rate_interval])), 1)",
+          "legendFormat": "{{span_name}}"
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Overview",
+      "type": "link",
+      "icon": "external link",
+      "url": "/d/llm-overview/llm-o11y-overview",
+      "targetBlank": false
+    },
+    {
+      "title": "Trace Explorer",
+      "type": "link",
+      "icon": "external link",
+      "url": "/d/llm-trace-explorer/llm-o11y-trace-explorer",
+      "targetBlank": false
+    },
+    {
+      "title": "QoS",
+      "type": "link",
+      "icon": "external link",
+      "url": "/d/llm-qos/llm-o11y-qos",
+      "targetBlank": false
+    },
+    {
+      "title": "KPI Scorecard",
+      "type": "link",
+      "icon": "external link",
+      "url": "/d/llm-kpi/llm-o11y-kpi-scorecard",
+      "targetBlank": false
+    }
+  ]
+}

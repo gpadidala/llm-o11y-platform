@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+{% set active_page = "providers" %}
+
+{% block title %}Providers - LLM O11y Platform{% endblock %}
+{% block header_title %}LLM Providers{% endblock %}
+
+{% block extra_styles %}
+.provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+}
+
+.provider-status-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 24px;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.provider-status-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.provider-status-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow);
+}
+
+.provider-status-card.openai::before { background: linear-gradient(90deg, #10a37f, #1a7f5a); }
+.provider-status-card.anthropic::before { background: linear-gradient(90deg, #d4a574, #c4956c); }
+.provider-status-card.azure::before { background: linear-gradient(90deg, #0078d4, #005a9e); }
+.provider-status-card.vertex::before { background: linear-gradient(90deg, #4285f4, #34a853); }
+.provider-status-card.bedrock::before { background: linear-gradient(90deg, #ff9900, #ec7211); }
+.provider-status-card.cohere::before { background: linear-gradient(90deg, #6e3ff5, #5429d6); }
+
+.provider-status-card:hover.openai { border-color: rgba(16, 163, 127, 0.4); }
+.provider-status-card:hover.anthropic { border-color: rgba(212, 165, 116, 0.4); }
+.provider-status-card:hover.azure { border-color: rgba(0, 120, 212, 0.4); }
+.provider-status-card:hover.vertex { border-color: rgba(66, 133, 244, 0.4); }
+.provider-status-card:hover.bedrock { border-color: rgba(255, 153, 0, 0.4); }
+.provider-status-card:hover.cohere { border-color: rgba(110, 63, 245, 0.4); }
+
+.psc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.psc-title-group {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.psc-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: white;
+}
+
+.psc-icon.openai { background: linear-gradient(135deg, #10a37f, #0d8c6d); }
+.psc-icon.anthropic { background: linear-gradient(135deg, #d4a574, #b8885c); }
+.psc-icon.azure { background: linear-gradient(135deg, #0078d4, #005a9e); }
+.psc-icon.vertex { background: linear-gradient(135deg, #4285f4, #2b6de0); }
+.psc-icon.bedrock { background: linear-gradient(135deg, #ff9900, #e08600); }
+.psc-icon.cohere { background: linear-gradient(135deg, #6e3ff5, #5429d6); }
+
+.psc-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.psc-connection {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.psc-connection.connected {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--green);
+}
+
+.psc-connection.disconnected {
+    background: rgba(244, 63, 94, 0.15);
+    color: var(--coral);
+}
+
+.psc-connection.unconfigured {
+    background: rgba(107, 114, 128, 0.15);
+    color: var(--text-muted);
+}
+
+.psc-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.psc-stat {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+
+.psc-stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.psc-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Provider-specific stat value colours */
+.provider-status-card.openai .psc-stat-value { color: #10a37f; }
+.provider-status-card.anthropic .psc-stat-value { color: #d4a574; }
+.provider-status-card.azure .psc-stat-value { color: #0078d4; }
+.provider-status-card.vertex .psc-stat-value { color: #4285f4; }
+.provider-status-card.bedrock .psc-stat-value { color: #ff9900; }
+.provider-status-card.cohere .psc-stat-value { color: #6e3ff5; }
+
+.page-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+}
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">LLM Providers</h1>
+<p class="page-subtitle">Status and usage metrics for each configured LLM provider.</p>
+
+<div class="page-actions">
+    <button class="btn btn-primary" onclick="refreshProviders()">&#x21BB; Refresh Status</button>
+    <a href="/settings" class="btn btn-secondary">&#x2699;&#xFE0F; Configure Providers</a>
+</div>
+
+<div class="provider-grid" id="provider-grid">
+    <!-- OpenAI -->
+    <div class="provider-status-card openai">
+        <div class="psc-header">
+            <div class="psc-title-group">
+                <div class="psc-icon openai">OA</div>
+                <div class="psc-name">OpenAI</div>
+            </div>
+            <div class="psc-connection connected" id="prov-status-openai">
+                <span class="status-dot healthy" style="margin-right: 0;"></span> Connected
+            </div>
+        </div>
+        <div class="psc-stats">
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-models-openai">5</div>
+                <div class="psc-stat-label">Models</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-requests-openai">4,210</div>
+                <div class="psc-stat-label">Total Requests</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-last-openai">2m ago</div>
+                <div class="psc-stat-label">Last Request</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-errors-openai">0.2%</div>
+                <div class="psc-stat-label">Error Rate</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Anthropic -->
+    <div class="provider-status-card anthropic">
+        <div class="psc-header">
+            <div class="psc-title-group">
+                <div class="psc-icon anthropic">An</div>
+                <div class="psc-name">Anthropic</div>
+            </div>
+            <div class="psc-connection connected" id="prov-status-anthropic">
+                <span class="status-dot healthy" style="margin-right: 0;"></span> Connected
+            </div>
+        </div>
+        <div class="psc-stats">
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-models-anthropic">3</div>
+                <div class="psc-stat-label">Models</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-requests-anthropic">3,891</div>
+                <div class="psc-stat-label">Total Requests</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-last-anthropic">8m ago</div>
+                <div class="psc-stat-label">Last Request</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-errors-anthropic">0.1%</div>
+                <div class="psc-stat-label">Error Rate</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Azure OpenAI -->
+    <div class="provider-status-card azure">
+        <div class="psc-header">
+            <div class="psc-title-group">
+                <div class="psc-icon azure">Az</div>
+                <div class="psc-name">Azure OpenAI</div>
+            </div>
+            <div class="psc-connection disconnected" id="prov-status-azure">
+                <span class="status-dot unhealthy" style="margin-right: 0;"></span> Disconnected
+            </div>
+        </div>
+        <div class="psc-stats">
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-models-azure">2</div>
+                <div class="psc-stat-label">Models</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-requests-azure">2,340</div>
+                <div class="psc-stat-label">Total Requests</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-last-azure">15m ago</div>
+                <div class="psc-stat-label">Last Request</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-errors-azure">1.5%</div>
+                <div class="psc-stat-label">Error Rate</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Vertex AI -->
+    <div class="provider-status-card vertex">
+        <div class="psc-header">
+            <div class="psc-title-group">
+                <div class="psc-icon vertex">GC</div>
+                <div class="psc-name">Google Vertex AI</div>
+            </div>
+            <div class="psc-connection connected" id="prov-status-vertex">
+                <span class="status-dot healthy" style="margin-right: 0;"></span> Connected
+            </div>
+        </div>
+        <div class="psc-stats">
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-models-vertex">2</div>
+                <div class="psc-stat-label">Models</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-requests-vertex">1,206</div>
+                <div class="psc-stat-label">Total Requests</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-last-vertex">1h ago</div>
+                <div class="psc-stat-label">Last Request</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-errors-vertex">0.4%</div>
+                <div class="psc-stat-label">Error Rate</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AWS Bedrock -->
+    <div class="provider-status-card bedrock">
+        <div class="psc-header">
+            <div class="psc-title-group">
+                <div class="psc-icon bedrock">BR</div>
+                <div class="psc-name">AWS Bedrock</div>
+            </div>
+            <div class="psc-connection unconfigured" id="prov-status-bedrock">
+                <span class="status-dot unknown" style="margin-right: 0;"></span> Unconfigured
+            </div>
+        </div>
+        <div class="psc-stats">
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-models-bedrock">0</div>
+                <div class="psc-stat-label">Models</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-requests-bedrock">0</div>
+                <div class="psc-stat-label">Total Requests</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-last-bedrock">--</div>
+                <div class="psc-stat-label">Last Request</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-errors-bedrock">--</div>
+                <div class="psc-stat-label">Error Rate</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cohere -->
+    <div class="provider-status-card cohere">
+        <div class="psc-header">
+            <div class="psc-title-group">
+                <div class="psc-icon cohere">Co</div>
+                <div class="psc-name">Cohere</div>
+            </div>
+            <div class="psc-connection unconfigured" id="prov-status-cohere">
+                <span class="status-dot unknown" style="margin-right: 0;"></span> Unconfigured
+            </div>
+        </div>
+        <div class="psc-stats">
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-models-cohere">0</div>
+                <div class="psc-stat-label">Models</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-requests-cohere">0</div>
+                <div class="psc-stat-label">Total Requests</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-last-cohere">--</div>
+                <div class="psc-stat-label">Last Request</div>
+            </div>
+            <div class="psc-stat">
+                <div class="psc-stat-value" id="prov-errors-cohere">--</div>
+                <div class="psc-stat-label">Error Rate</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function refreshProviders() {
+        showToast('Refreshing provider status...', 'info');
+        // In production, this would call an API endpoint
+        setTimeout(() => {
+            showToast('Provider status updated', 'success');
+        }, 800);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,505 @@
+{
+  "uid": "llm-bedrock",
+  "title": "LLM O11y — AWS Bedrock",
+  "description": "Dedicated observability dashboard for AWS Bedrock provider: request rate, latency, token usage, cost, and TTFT.",
+  "tags": ["llm", "observability", "bedrock", "aws", "provider"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "templating": {
+    "list": [
+      {
+        "name": "model",
+        "type": "query",
+        "label": "Model",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(llm_requests_total{provider=\"bedrock\"}, model)",
+        "query": {
+          "query": "label_values(llm_requests_total{provider=\"bedrock\"}, model)",
+          "refId": "StandardVariableQuery"
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Request Overview",
+      "id": 1,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 2,
+      "title": "Request Rate by Model",
+      "description": "Rate of LLM requests per second for Bedrock models.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "req/s",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (model) (rate(llm_requests_total{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval]))",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Error Rate by Model",
+      "description": "Percentage of requests resulting in errors for each Bedrock model.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "%",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line+area" }
+          },
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "transparent", "value": null },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * sum by (model) (rate(llm_requests_total{provider=\"bedrock\", model=~\"$model\", status=\"error\"}[$__rate_interval])) / clamp_min(sum by (model) (rate(llm_requests_total{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval])), 1)",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Latency",
+      "id": 10,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 11,
+      "title": "P50 / P95 / P99 Latency per Model",
+      "description": "Request latency percentiles for Bedrock models.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "P50",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.50, sum by (le, model) (rate(llm_request_duration_milliseconds_bucket{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval])))",
+          "legendFormat": "{{model}} P50"
+        },
+        {
+          "refId": "P95",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(llm_request_duration_milliseconds_bucket{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval])))",
+          "legendFormat": "{{model}} P95"
+        },
+        {
+          "refId": "P99",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le, model) (rate(llm_request_duration_milliseconds_bucket{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval])))",
+          "legendFormat": "{{model}} P99"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "TTFT per Model",
+      "description": "Time to First Token latency percentiles for Bedrock models.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "P50",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.50, sum by (le, model) (rate(llm_ttft_milliseconds_bucket{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval])))",
+          "legendFormat": "{{model}} TTFT P50"
+        },
+        {
+          "refId": "P95",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(llm_ttft_milliseconds_bucket{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval])))",
+          "legendFormat": "{{model}} TTFT P95"
+        },
+        {
+          "refId": "P99",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le, model) (rate(llm_ttft_milliseconds_bucket{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval])))",
+          "legendFormat": "{{model}} TTFT P99"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Tokens & Cost",
+      "id": 20,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 21,
+      "title": "Token Usage: Prompt vs Completion per Model",
+      "description": "Stacked token usage broken down by model and token type for Bedrock.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "tokens/s",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (model, token_type) (rate(llm_tokens_total{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval]))",
+          "legendFormat": "{{model}} — {{token_type}}"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "Cost per Model",
+      "description": "Cost accumulation rate per Bedrock model over time.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "$/s",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "sum"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (model) (rate(llm_cost_usd_total{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval]))",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Stats & Gauges",
+      "id": 30,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 31,
+      "title": "Total Cost (Bedrock)",
+      "description": "Cumulative total cost for Bedrock provider in the selected time range.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 28 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "orange", "value": 100 },
+              { "color": "red", "value": 500 }
+            ]
+          },
+          "unit": "currencyUSD",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(llm_cost_usd_total{provider=\"bedrock\", model=~\"$model\"})",
+          "legendFormat": "Total Cost"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "title": "Request Success Rate",
+      "description": "Percentage of successful Bedrock requests over the selected time range.",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 28 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 99 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * (1 - (sum(rate(llm_requests_total{provider=\"bedrock\", model=~\"$model\", status=\"error\"}[$__rate_interval])) / clamp_min(sum(rate(llm_requests_total{provider=\"bedrock\", model=~\"$model\"}[$__rate_interval])), 1)))",
+          "legendFormat": "Success Rate"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "title": "Top Model by Requests",
+      "description": "Bedrock models ranked by total request count.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 28 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "continuous-BlYlRd" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          },
+          "unit": "short",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "minVizWidth": 8,
+        "minVizHeight": 16,
+        "namePlacement": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "topk(5, sum by (model) (llm_requests_total{provider=\"bedrock\", model=~\"$model\"}))",
+          "legendFormat": "{{model}}",
+          "instant": true
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Overview",
+      "type": "link",
+      "icon": "external link",
+      "url": "/d/llm-overview/llm-o11y-overview",
+      "targetBlank": false
+    },
+    {
+      "title": "OpenAI",
+      "type": "link",
+      "icon": "external link",
+      "url": "/d/llm-openai/llm-o11y-openai",
+      "targetBlank": false
+    },
+    {
+      "title": "KPI Scorecard",
+      "type": "link",
+      "icon": "external link",
+      "url": "/d/llm-kpi/llm-o11y-kpi-scorecard",
+      "targetBlank": false
+    }
+  ]
+}

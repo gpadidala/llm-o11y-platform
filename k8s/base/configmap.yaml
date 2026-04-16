@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-o11y-gateway-config
+  namespace: llm-o11y
+data:
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.llm-o11y.svc:4317"
+  OTEL_SERVICE_NAME: "llm-o11y-gateway"
+  GATEWAY_PORT: "8080"
+  LOG_LEVEL: "info"

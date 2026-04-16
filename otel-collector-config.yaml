@@ -1,0 +1,99 @@
+# =============================================================================
+# OpenTelemetry Collector Configuration
+# =============================================================================
+# Central telemetry pipeline for the LLM Observability Platform.
+# Routes traces -> Tempo, metrics -> Prometheus, logs -> Loki.
+#
+# Collector self-metrics are exposed on :8888 for Prometheus scraping.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Receivers
+# -----------------------------------------------------------------------------
+# Accept OTLP over both gRPC and HTTP so the gateway (and any future
+# instrumented service) can push telemetry using either transport.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+# -----------------------------------------------------------------------------
+# Processors
+# -----------------------------------------------------------------------------
+processors:
+  # Memory guard - prevents OOM by dropping data when memory is high.
+  # Check interval is how often the limiter samples RSS; spike_limit handles
+  # sudden bursts that arrive between checks.
+  memory_limiter:
+    limit_mib: 512
+    spike_limit_mib: 128
+    check_interval: 5s
+
+  # Batch telemetry to reduce export overhead. 5s window or 512 items,
+  # whichever is reached first.
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+
+  # Stamp every signal with a common namespace so Grafana queries can
+  # filter on service.namespace="llm-o11y" across all three pillars.
+  resource:
+    attributes:
+      - key: service.namespace
+        value: llm-o11y
+        action: upsert
+
+# -----------------------------------------------------------------------------
+# Exporters
+# -----------------------------------------------------------------------------
+exporters:
+  # Traces -> Grafana Tempo via OTLP gRPC (cluster-internal, no TLS needed).
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Metrics -> Prometheus via remote write.
+  # Prometheus must have --web.enable-remote-write-receiver enabled.
+  prometheusremotewrite:
+    endpoint: http://prometheus:9090/api/v1/write
+    tls:
+      insecure: true
+
+  # Logs -> Grafana Loki via the native Loki exporter.
+  # Labels are extracted from resource attributes so Loki can index them.
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+
+# -----------------------------------------------------------------------------
+# Service Pipelines
+# -----------------------------------------------------------------------------
+# Each pipeline defines the flow: receivers -> processors -> exporters.
+# Processor order matters: memory_limiter first (shed load early), then batch
+# (reduce export calls), then resource (enrich before export).
+service:
+  # Collector internal telemetry - useful for debugging the collector itself.
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlp/tempo]
+
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheusremotewrite]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [loki]

@@ -1,0 +1,50 @@
+# =============================================================================
+# Prometheus Configuration
+# =============================================================================
+# Scrape targets for the LLM Observability Platform plus remote-write
+# receiver support. Prometheus also ingests metrics pushed by the OTel
+# Collector (via remote write) and Tempo's metrics generator.
+#
+# NOTE: The --web.enable-remote-write-receiver flag must be passed as a
+# command-line argument in docker-compose.yaml for remote write to work.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Global Defaults
+# -----------------------------------------------------------------------------
+global:
+  scrape_interval: 15s         # How often to pull metrics from targets
+  evaluation_interval: 15s     # How often to evaluate recording/alerting rules
+  external_labels:
+    cluster: local
+    environment: development
+
+# -----------------------------------------------------------------------------
+# Scrape Configs
+# -----------------------------------------------------------------------------
+scrape_configs:
+
+  # Prometheus self-monitoring. Provides insights into query performance,
+  # storage usage, and rule evaluation timing.
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: prometheus
+
+  # OpenTelemetry Collector internal metrics. Tracks pipeline throughput,
+  # dropped spans/metrics/logs, and exporter health.
+  - job_name: "otel-collector"
+    static_configs:
+      - targets: ["otel-collector:8888"]
+        labels:
+          service: otel-collector
+
+  # LLM Gateway application metrics. The FastAPI proxy exposes Prometheus
+  # metrics on /metrics (request latency, token counts, error rates, etc.).
+  - job_name: "llm-gateway"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["gateway:8080"]
+        labels:
+          service: llm-o11y-gateway

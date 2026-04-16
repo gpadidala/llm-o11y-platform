@@ -1,0 +1,82 @@
+# =============================================================================
+# Grafana Tempo Configuration
+# =============================================================================
+# Single-node Tempo setup for local development. Receives traces via OTLP
+# gRPC from the OpenTelemetry Collector, stores blocks on the local
+# filesystem, and generates service-graph / span metrics that are pushed
+# to Prometheus via remote write.
+# =============================================================================
+
+# HTTP API for Grafana datasource queries and Tempo UI.
+server:
+  http_listen_port: 3200
+
+# -----------------------------------------------------------------------------
+# Distributor
+# -----------------------------------------------------------------------------
+# Accepts incoming trace data. We only enable OTLP gRPC since the OTel
+# Collector forwards traces over gRPC.
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+# -----------------------------------------------------------------------------
+# Ingester
+# -----------------------------------------------------------------------------
+# Buffers trace data in memory before flushing to the storage backend.
+ingester:
+  trace_idle_period: 30s          # Flush a trace after 30s of inactivity
+  max_block_bytes: 1_000_000      # Flush when block reaches ~1 MB
+  max_block_duration: 5m          # Hard flush every 5 minutes regardless
+
+# -----------------------------------------------------------------------------
+# Compactor
+# -----------------------------------------------------------------------------
+# Merges small blocks into larger ones for efficient queries.
+compactor:
+  compaction:
+    compaction_window: 1h                # Merge blocks within a 1-hour window
+    max_block_bytes: 100_000_000         # Target ~100 MB compacted blocks
+
+# -----------------------------------------------------------------------------
+# Storage
+# -----------------------------------------------------------------------------
+# Local filesystem backend. In production, swap to S3/GCS/Azure Blob.
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo/blocks
+    wal:
+      path: /tmp/tempo/wal
+
+# -----------------------------------------------------------------------------
+# Metrics Generator
+# -----------------------------------------------------------------------------
+# Derives RED metrics (rate, errors, duration) from traces and pushes them
+# to Prometheus via remote write. This powers the Service Graph panel in
+# Grafana without needing separate application-level metrics.
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: local
+  storage:
+    path: /tmp/tempo/generator/wal
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true
+        headers:
+          X-Scope-OrgID: anonymous
+
+# -----------------------------------------------------------------------------
+# Overrides
+# -----------------------------------------------------------------------------
+# Per-tenant overrides. Enable the metrics generator for all tenants.
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics]
