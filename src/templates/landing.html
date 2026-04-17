@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM O11y — Unified AI Gateway & Observability Platform</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --purple: #a855f7; --blue: #3b82f6; --cyan: #06b6d4; --green: #22c55e;
+            --orange: #f97316; --pink: #ec4899; --red: #ef4444; --amber: #f59e0b;
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #0a0e17; color: #e2e8f0; overflow-x: hidden; }
+
+        /* ── TOP NAV ────────────────────────────────────────────── */
+        .topnav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 0 40px; height: 64px; display: flex; align-items: center; background: rgba(10,14,23,0.8); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.06); transition: background 0.3s; }
+        .topnav.scrolled { background: rgba(10,14,23,0.95); }
+        .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .nav-logo img { width: 32px; height: 32px; }
+        .nav-logo span { font-size: 18px; font-weight: 800; background: linear-gradient(135deg, #a855f7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-links { display: flex; align-items: center; gap: 32px; margin-left: 48px; }
+        .nav-links a { color: #94a3b8; text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: #e2e8f0; }
+        .nav-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+        .nav-btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; transition: all 0.2s; }
+        .nav-btn-ghost { color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15); }
+        .nav-btn-ghost:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }
+        .nav-btn-primary { background: linear-gradient(135deg, #a855f7, #3b82f6); color: white; border: none; }
+        .nav-btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(168,85,247,0.3); }
+
+        /* ── HERO ───────────────────────────────────────────────── */
+        .hero { padding: 160px 40px 100px; text-align: center; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%); width: 800px; height: 800px; background: radial-gradient(circle, rgba(168,85,247,0.12) 0%, rgba(59,130,246,0.06) 40%, transparent 70%); pointer-events: none; }
+        .hero-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.2); border-radius: 24px; font-size: 12px; font-weight: 600; color: #c084fc; margin-bottom: 24px; }
+        .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+        .hero h1 { font-size: 64px; font-weight: 900; line-height: 1.1; letter-spacing: -2px; max-width: 800px; margin: 0 auto 20px; }
+        .hero h1 .gradient { background: linear-gradient(135deg, #a855f7, #3b82f6, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { font-size: 18px; color: #94a3b8; max-width: 600px; margin: 0 auto 36px; line-height: 1.6; }
+        .hero-ctas { display: flex; gap: 14px; justify-content: center; margin-bottom: 60px; }
+        .hero-cta { padding: 14px 32px; border-radius: 12px; font-size: 15px; font-weight: 700; text-decoration: none; transition: all 0.25s; display: inline-flex; align-items: center; gap: 8px; }
+        .hero-cta-primary { background: linear-gradient(135deg, #a855f7, #3b82f6); color: white; box-shadow: 0 4px 24px rgba(168,85,247,0.3); }
+        .hero-cta-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(168,85,247,0.4); }
+        .hero-cta-secondary { background: rgba(255,255,255,0.06); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.12); }
+        .hero-cta-secondary:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+
+        /* ── STATS ──────────────────────────────────────────────── */
+        .stats { display: flex; justify-content: center; gap: 48px; padding: 40px; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
+        .stat { text-align: center; }
+        .stat .num { font-size: 36px; font-weight: 900; background: linear-gradient(135deg, #a855f7, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat .label { font-size: 13px; color: #64748b; margin-top: 4px; font-weight: 500; }
+
+        /* ── SECTION ────────────────────────────────────────────── */
+        .section { padding: 100px 40px; max-width: 1200px; margin: 0 auto; }
+        .section-label { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #a855f7; margin-bottom: 12px; }
+        .section-title { font-size: 42px; font-weight: 900; letter-spacing: -1px; margin-bottom: 16px; }
+        .section-subtitle { font-size: 17px; color: #94a3b8; max-width: 600px; line-height: 1.6; margin-bottom: 48px; }
+
+        /* ── FLOW SECTION ───────────────────────────────────────── */
+        .flow-section { padding: 100px 40px; background: linear-gradient(180deg, rgba(168,85,247,0.04) 0%, transparent 100%); }
+        .flow-inner { max-width: 1100px; margin: 0 auto; }
+        .flow-steps { display: flex; gap: 0; margin-top: 48px; position: relative; }
+        .flow-steps::before { content: ''; position: absolute; top: 40px; left: 60px; right: 60px; height: 3px; background: linear-gradient(90deg, #a855f7, #3b82f6, #06b6d4, #22c55e); border-radius: 2px; opacity: 0.3; }
+        .flow-step { flex: 1; text-align: center; position: relative; padding: 0 12px; }
+        .flow-num { width: 80px; height: 80px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: white; margin: 0 auto 18px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); position: relative; z-index: 1; }
+        .flow-step:nth-child(1) .flow-num { background: linear-gradient(135deg, #a855f7, #7c3aed); }
+        .flow-step:nth-child(2) .flow-num { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .flow-step:nth-child(3) .flow-num { background: linear-gradient(135deg, #f97316, #ea580c); }
+        .flow-step:nth-child(4) .flow-num { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .flow-step:nth-child(5) .flow-num { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+        .flow-step-title { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+        .flow-step-detail { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+        .flow-arrow { position: absolute; top: 36px; right: -12px; color: #475569; font-size: 20px; z-index: 2; }
+
+        /* ── FEATURE GRID ───────────────────────────────────────── */
+        .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .feature-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 32px 28px; transition: all 0.3s; position: relative; overflow: hidden; }
+        .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 16px 16px 0 0; }
+        .feature-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.2); }
+        .feature-card:nth-child(1)::before { background: linear-gradient(90deg, #a855f7, #7c3aed); }
+        .feature-card:nth-child(2)::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+        .feature-card:nth-child(3)::before { background: linear-gradient(90deg, #f97316, #ea580c); }
+        .feature-card:nth-child(4)::before { background: linear-gradient(90deg, #22c55e, #16a34a); }
+        .feature-card:nth-child(5)::before { background: linear-gradient(90deg, #ec4899, #db2777); }
+        .feature-card:nth-child(6)::before { background: linear-gradient(90deg, #06b6d4, #0891b2); }
+        .feature-icon { font-size: 36px; margin-bottom: 16px; }
+        .feature-title { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+        .feature-desc { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+        .feature-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+        .feature-tag { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; background: rgba(255,255,255,0.06); color: #94a3b8; }
+
+        /* ── PIPELINE VISUAL ────────────────────────────────────── */
+        .pipeline-section { padding: 80px 40px; background: linear-gradient(180deg, transparent, rgba(59,130,246,0.04) 50%, transparent); }
+        .pipeline-inner { max-width: 1100px; margin: 0 auto; text-align: center; }
+        .pipeline-bar { display: flex; align-items: center; justify-content: center; gap: 0; margin: 40px auto; max-width: 1000px; flex-wrap: wrap; }
+        .pipe-step { padding: 10px 16px; font-size: 12px; font-weight: 700; border: 2px solid; background: rgba(255,255,255,0.03); color: #e2e8f0; }
+        .pipe-step:first-child { border-radius: 10px 0 0 10px; }
+        .pipe-step:last-child { border-radius: 0 10px 10px 0; }
+        .pipe-arrow { font-size: 14px; padding: 0 2px; }
+        .pipe-step:nth-child(1) { border-color: #a855f7; color: #c084fc; } .pipe-arrow:nth-child(2) { color: #a855f7; }
+        .pipe-step:nth-child(3) { border-color: #f59e0b; color: #fbbf24; } .pipe-arrow:nth-child(4) { color: #f59e0b; }
+        .pipe-step:nth-child(5) { border-color: #f43f5e; color: #fda4af; } .pipe-arrow:nth-child(6) { color: #f43f5e; }
+        .pipe-step:nth-child(7) { border-color: #06b6d4; color: #67e8f9; } .pipe-arrow:nth-child(8) { color: #06b6d4; }
+        .pipe-step:nth-child(9) { border-color: #ef4444; color: #fca5a5; } .pipe-arrow:nth-child(10) { color: #ef4444; }
+        .pipe-step:nth-child(11) { border-color: #3b82f6; color: #93c5fd; } .pipe-arrow:nth-child(12) { color: #3b82f6; }
+        .pipe-step:nth-child(13) { border-color: #f97316; color: #fdba74; } .pipe-arrow:nth-child(14) { color: #f97316; }
+        .pipe-step:nth-child(15) { border-color: #22c55e; color: #86efac; } .pipe-arrow:nth-child(16) { color: #22c55e; }
+        .pipe-step:nth-child(17) { border-color: #06b6d4; color: #67e8f9; } .pipe-arrow:nth-child(18) { color: #06b6d4; }
+        .pipe-step:nth-child(19) { border-color: #8b5cf6; color: #c4b5fd; }
+
+        /* ── PROVIDERS ──────────────────────────────────────────── */
+        .providers-row { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; margin-top: 40px; }
+        .provider-chip { display: flex; align-items: center; gap: 10px; padding: 12px 24px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; transition: all 0.2s; }
+        .provider-chip:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); }
+        .provider-chip .name { font-size: 14px; font-weight: 700; }
+        .provider-chip .models { font-size: 11px; color: #64748b; }
+
+        /* ── CTA SECTION ────────────────────────────────────────── */
+        .cta-section { padding: 100px 40px; text-align: center; background: linear-gradient(180deg, transparent, rgba(168,85,247,0.06)); }
+        .cta-section h2 { font-size: 40px; font-weight: 900; margin-bottom: 16px; }
+        .cta-section p { font-size: 16px; color: #94a3b8; margin-bottom: 32px; }
+
+        /* ── FOOTER ─────────────────────────────────────────────── */
+        .footer { padding: 40px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; }
+        .footer-links { display: flex; justify-content: center; gap: 24px; margin-bottom: 16px; }
+        .footer-links a { color: #64748b; text-decoration: none; font-size: 13px; font-weight: 500; }
+        .footer-links a:hover { color: #e2e8f0; }
+        .footer-copy { font-size: 12px; color: #475569; }
+
+        /* ── ANIMATIONS ─────────────────────────────────────────── */
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+        /* ── RESPONSIVE ─────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 36px; }
+            .features { grid-template-columns: 1fr; }
+            .flow-steps { flex-direction: column; gap: 24px; }
+            .flow-steps::before { display: none; }
+            .stats { flex-wrap: wrap; gap: 24px; }
+            .nav-links { display: none; }
+            .pipeline-bar { flex-wrap: wrap; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════ TOP NAVIGATION ═══════════════ -->
+<nav class="topnav" id="topnav">
+    <a href="/" class="nav-logo">
+        <img src="/static/logo.svg" alt="LLM O11y"/>
+        <span>LLM O11y</span>
+    </a>
+    <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#providers">Providers</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="/docs" target="_blank">API Docs</a>
+        <a href="https://github.com/gpadidala/llm-o11y-platform" target="_blank">GitHub</a>
+    </div>
+    <div class="nav-right">
+        <a href="/dashboard" class="nav-btn nav-btn-ghost">Dashboard</a>
+        <a href="/playground" class="nav-btn nav-btn-primary">Open Playground</a>
+    </div>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<section class="hero">
+    <div class="hero-badge"><span class="dot"></span> Open Source &mdash; Self Hosted &mdash; Zero Vendor Lock-in</div>
+    <h1>Ship AI that <span class="gradient">works reliably</span></h1>
+    <p>Route, observe, evaluate, and secure every LLM call across OpenAI, Anthropic, Gemini, Bedrock, and Cohere &mdash; from a single gateway with built-in guardrails.</p>
+    <div class="hero-ctas">
+        <a href="/playground" class="hero-cta hero-cta-primary">&#9654; Open Playground</a>
+        <a href="/dashboard" class="hero-cta hero-cta-secondary">&#128200; Go to Dashboard</a>
+        <a href="https://github.com/gpadidala/llm-o11y-platform" class="hero-cta hero-cta-secondary" target="_blank">&#11088; Star on GitHub</a>
+    </div>
+    <img src="/static/logo.svg" alt="LLM O11y Platform" style="width:180px;height:180px;animation:float 4s ease-in-out infinite;filter:drop-shadow(0 0 60px rgba(168,85,247,0.25));"/>
+</section>
+
+<!-- ═══════════════ STATS ═══════════════ -->
+<section class="stats">
+    <div class="stat"><div class="num">6</div><div class="label">LLM Providers</div></div>
+    <div class="stat"><div class="num">16+</div><div class="label">Models Supported</div></div>
+    <div class="stat"><div class="num">19</div><div class="label">Grafana Dashboards</div></div>
+    <div class="stat"><div class="num">50+</div><div class="label">API Endpoints</div></div>
+    <div class="stat"><div class="num">18</div><div class="label">PII Patterns</div></div>
+    <div class="stat"><div class="num">10</div><div class="label">UI Pages</div></div>
+</section>
+
+<!-- ═══════════════ HOW IT WORKS ═══════════════ -->
+<section class="flow-section" id="how-it-works">
+    <div class="flow-inner">
+        <div style="text-align:center;">
+            <div class="section-label">How It Works</div>
+            <div class="section-title" style="margin:0 auto;">Build &rarr; Route &rarr; Guard &rarr; Observe &rarr; Evaluate</div>
+            <div class="section-subtitle" style="margin:0 auto 0;">Five pillars of production-grade AI operations, unified in one platform.</div>
+        </div>
+        <div class="flow-steps">
+            <div class="flow-step">
+                <div class="flow-num">1</div>
+                <div class="flow-step-title">Connect</div>
+                <div class="flow-step-detail">Add your API keys for any provider. Create virtual keys with budgets and permissions for your teams.</div>
+                <span class="flow-arrow">&rarr;</span>
+            </div>
+            <div class="flow-step">
+                <div class="flow-num">2</div>
+                <div class="flow-step-title">Route</div>
+                <div class="flow-step-detail">Intelligent routing picks the best model by cost, latency, or reliability. Fallbacks and canary testing built in.</div>
+                <span class="flow-arrow">&rarr;</span>
+            </div>
+            <div class="flow-step">
+                <div class="flow-num">3</div>
+                <div class="flow-step-title">Guard</div>
+                <div class="flow-step-detail">PII detection and redaction, content safety filters, topic restrictions, and output schema validation before and after every call.</div>
+                <span class="flow-arrow">&rarr;</span>
+            </div>
+            <div class="flow-step">
+                <div class="flow-num">4</div>
+                <div class="flow-step-title">Observe</div>
+                <div class="flow-step-detail">Full OpenTelemetry traces, 8 custom metrics, structured logs. 19 Grafana dashboards with cost intelligence and SLO tracking.</div>
+                <span class="flow-arrow">&rarr;</span>
+            </div>
+            <div class="flow-step">
+                <div class="flow-num">5</div>
+                <div class="flow-step-title">Evaluate</div>
+                <div class="flow-step-detail">LLM-as-judge scoring across 6 criteria. Batch evaluations on datasets. Track quality over time.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════ FEATURES ═══════════════ -->
+<section class="section" id="features">
+    <div class="section-label">Platform Capabilities</div>
+    <div class="section-title">Everything you need for production AI</div>
+    <div class="section-subtitle">A unified control plane for LLM operations &mdash; from development to production.</div>
+    <div class="features">
+        <div class="feature-card">
+            <div class="feature-icon">&#9889;</div>
+            <div class="feature-title">AI Gateway</div>
+            <div class="feature-desc">OpenAI-compatible endpoint for all providers. Intelligent routing, response caching, rate limiting, circuit breakers, and retry with exponential backoff.</div>
+            <div class="feature-tags"><span class="feature-tag">6 routing strategies</span><span class="feature-tag">semantic cache</span><span class="feature-tag">circuit breaker</span></div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128273;</div>
+            <div class="feature-title">Virtual Keys</div>
+            <div class="feature-desc">Issue sk-llmo-xxx API keys with per-key budgets, rate limits, provider/model permissions, and team ownership. Track spend in real-time.</div>
+            <div class="feature-tags"><span class="feature-tag">budget controls</span><span class="feature-tag">RBAC</span><span class="feature-tag">per-team</span></div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128221;</div>
+            <div class="feature-title">Prompt Management</div>
+            <div class="feature-desc">Version-controlled prompt templates with {{variable}} interpolation, A/B variant testing, and a visual Prompt Studio for editing and testing.</div>
+            <div class="feature-tags"><span class="feature-tag">versioning</span><span class="feature-tag">A/B testing</span><span class="feature-tag">live test</span></div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128737;</div>
+            <div class="feature-title">Guardrails</div>
+            <div class="feature-desc">18 PII regex patterns detect emails, phones, SSNs, credit cards, API keys, and more. Content safety, topic blocking, and JSON output validation.</div>
+            <div class="feature-tags"><span class="feature-tag">PII redaction</span><span class="feature-tag">content safety</span><span class="feature-tag">schema validation</span></div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128200;</div>
+            <div class="feature-title">Evaluation</div>
+            <div class="feature-desc">LLM-as-judge scoring across 6 criteria: relevance, faithfulness, helpfulness, coherence, toxicity, and custom rubrics. Batch eval on datasets.</div>
+            <div class="feature-tags"><span class="feature-tag">LLM-as-judge</span><span class="feature-tag">6 criteria</span><span class="feature-tag">datasets</span></div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128301;</div>
+            <div class="feature-title">Observability</div>
+            <div class="feature-desc">Full OpenTelemetry pipeline: traces to Tempo, metrics to Prometheus, logs to Loki. 19 Grafana dashboards with reliability engineering and cost intelligence.</div>
+            <div class="feature-tags"><span class="feature-tag">19 dashboards</span><span class="feature-tag">OTel</span><span class="feature-tag">Grafana LGTM</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════ PIPELINE VISUAL ═══════════════ -->
+<section class="pipeline-section" id="pipeline">
+    <div class="pipeline-inner">
+        <div class="section-label">Gateway Pipeline</div>
+        <div class="section-title">10-step middleware for every request</div>
+        <div class="section-subtitle" style="margin:0 auto;">Every LLM call passes through a production-grade pipeline with auth, caching, safety, routing, and telemetry.</div>
+        <div class="pipeline-bar">
+            <div class="pipe-step">Auth</div><span class="pipe-arrow">&#9654;</span>
+            <div class="pipe-step">Rate Limit</div><span class="pipe-arrow">&#9654;</span>
+            <div class="pipe-step">Guardrails</div><span class="pipe-arrow">&#9654;</span>
+            <div class="pipe-step">Cache</div><span class="pipe-arrow">&#9654;</span>
+            <div class="pipe-step">Circuit Breaker</div><span class="pipe-arrow">&#9654;</span>
+            <div class="pipe-step">Route</div><span class="pipe-arrow">&#9654;</span>
+            <div class="pipe-step">Retry</div><span class="pipe-arrow">&#9654;</span>
+            <div class="pipe-step">Provider</div><span class="pipe-arrow">&#9654;</span>
+            <div class="pipe-step">Cache Store</div><span class="pipe-arrow">&#9654;</span>
+            <div class="pipe-step">OTel Emit</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════ PROVIDERS ═══════════════ -->
+<section class="section" id="providers">
+    <div style="text-align:center;">
+        <div class="section-label">Supported Providers</div>
+        <div class="section-title">One API. Every major LLM.</div>
+        <div class="section-subtitle" style="margin:0 auto;">Drop-in replacement for the OpenAI SDK &mdash; just change the base URL.</div>
+    </div>
+    <div class="providers-row">
+        <div class="provider-chip"><span style="font-size:24px;">&#x1F7E2;</span><div><div class="name">OpenAI</div><div class="models">GPT-4o, GPT-4o-mini, o1, o1-mini</div></div></div>
+        <div class="provider-chip"><span style="font-size:24px;">&#x1F7E0;</span><div><div class="name">Anthropic</div><div class="models">Claude Opus, Sonnet, Haiku</div></div></div>
+        <div class="provider-chip"><span style="font-size:24px;">&#x1F535;</span><div><div class="name">Google Vertex AI</div><div class="models">Gemini 1.5 Pro, Flash, 2.0</div></div></div>
+        <div class="provider-chip"><span style="font-size:24px;">&#x1F7E1;</span><div><div class="name">AWS Bedrock</div><div class="models">Claude, Llama, Titan</div></div></div>
+        <div class="provider-chip"><span style="font-size:24px;">&#x1F7E3;</span><div><div class="name">Cohere</div><div class="models">Command R+, Command R</div></div></div>
+        <div class="provider-chip"><span style="font-size:24px;">&#x1F7E6;</span><div><div class="name">Azure OpenAI</div><div class="models">GPT-4o via Azure</div></div></div>
+    </div>
+</section>
+
+<!-- ═══════════════ CTA ═══════════════ -->
+<section class="cta-section">
+    <h2>Ready to <span style="background:linear-gradient(135deg,#a855f7,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">get started?</span></h2>
+    <p>Deploy in 60 seconds with Docker Compose. No credit card. No vendor lock-in.</p>
+    <div style="display:flex;justify-content:center;gap:12px;">
+        <a href="/dashboard" class="hero-cta hero-cta-primary">&#128640; Launch Dashboard</a>
+        <a href="https://github.com/gpadidala/llm-o11y-platform" class="hero-cta hero-cta-secondary" target="_blank">&#128214; View on GitHub</a>
+    </div>
+    <p style="margin-top:24px;font-size:13px;color:#475569;font-family:monospace;">docker compose up -d &amp;&amp; open http://localhost:8080</p>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="footer">
+    <div class="footer-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/playground">Playground</a>
+        <a href="/prompts">Prompts</a>
+        <a href="/keys">API Keys</a>
+        <a href="/eval">Evaluation</a>
+        <a href="/guardrails">Guardrails</a>
+        <a href="/docs">API Docs</a>
+        <a href="https://github.com/gpadidala/llm-o11y-platform" target="_blank">GitHub</a>
+    </div>
+    <div class="footer-copy">LLM O11y Platform &mdash; Open Source Unified AI Gateway &amp; Observability &bull; MIT License &bull; Built by Gopal Padidala</div>
+</footer>
+
+<script>
+    // Navbar scroll effect
+    window.addEventListener('scroll', function() {
+        document.getElementById('topnav').classList.toggle('scrolled', window.scrollY > 20);
+    });
+</script>
+</body>
+</html>

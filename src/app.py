@@ -381,8 +381,14 @@ if eval_router is not None:
 
 
 @app.get("/", response_class=HTMLResponse)
-async def ui_home(request: Request):
-    """Dashboard home page."""
+async def ui_landing(request: Request):
+    """Landing page with top nav, hero, flow, and features."""
+    return templates.TemplateResponse("landing.html", {"request": request})
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def ui_dashboard(request: Request):
+    """Analytics dashboard page."""
     return templates.TemplateResponse("index.html", {"request": request})
 
 
