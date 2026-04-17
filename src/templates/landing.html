@@ -57,21 +57,72 @@
         .section-title { font-size: 42px; font-weight: 900; letter-spacing: -1px; margin-bottom: 16px; }
         .section-subtitle { font-size: 17px; color: #94a3b8; max-width: 600px; line-height: 1.6; margin-bottom: 48px; }
 
-        /* ── FLOW SECTION ───────────────────────────────────────── */
+        /* ── FLOW SECTION (Animated Tabs) ───────────────────────── */
         .flow-section { padding: 100px 40px; background: linear-gradient(180deg, rgba(168,85,247,0.04) 0%, transparent 100%); }
         .flow-inner { max-width: 1100px; margin: 0 auto; }
-        .flow-steps { display: flex; gap: 0; margin-top: 48px; position: relative; }
-        .flow-steps::before { content: ''; position: absolute; top: 40px; left: 60px; right: 60px; height: 3px; background: linear-gradient(90deg, #a855f7, #3b82f6, #06b6d4, #22c55e); border-radius: 2px; opacity: 0.3; }
-        .flow-step { flex: 1; text-align: center; position: relative; padding: 0 12px; }
-        .flow-num { width: 80px; height: 80px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: white; margin: 0 auto 18px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); position: relative; z-index: 1; }
-        .flow-step:nth-child(1) .flow-num { background: linear-gradient(135deg, #a855f7, #7c3aed); }
-        .flow-step:nth-child(2) .flow-num { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-        .flow-step:nth-child(3) .flow-num { background: linear-gradient(135deg, #f97316, #ea580c); }
-        .flow-step:nth-child(4) .flow-num { background: linear-gradient(135deg, #22c55e, #16a34a); }
-        .flow-step:nth-child(5) .flow-num { background: linear-gradient(135deg, #06b6d4, #0891b2); }
-        .flow-step-title { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
-        .flow-step-detail { font-size: 12px; color: #94a3b8; line-height: 1.5; }
-        .flow-arrow { position: absolute; top: 36px; right: -12px; color: #475569; font-size: 20px; z-index: 2; }
+
+        /* Tab bar */
+        .flow-tabs { display: flex; gap: 4px; margin-top: 48px; position: relative; background: rgba(255,255,255,0.03); border-radius: 16px; padding: 6px; border: 1px solid rgba(255,255,255,0.06); }
+        .flow-tab { flex: 1; padding: 14px 12px; text-align: center; border-radius: 12px; cursor: pointer; transition: all 0.4s cubic-bezier(0.4,0,0.2,1); position: relative; }
+        .flow-tab:hover { background: rgba(255,255,255,0.04); }
+        .flow-tab.active { background: rgba(255,255,255,0.06); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .flow-tab-num { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; color: white; margin: 0 auto 8px; transition: all 0.4s; opacity: 0.5; transform: scale(0.85); }
+        .flow-tab.active .flow-tab-num { opacity: 1; transform: scale(1); box-shadow: 0 4px 16px rgba(0,0,0,0.25); }
+        .flow-tab:nth-child(1) .flow-tab-num { background: linear-gradient(135deg, #a855f7, #7c3aed); }
+        .flow-tab:nth-child(2) .flow-tab-num { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .flow-tab:nth-child(3) .flow-tab-num { background: linear-gradient(135deg, #f97316, #ea580c); }
+        .flow-tab:nth-child(4) .flow-tab-num { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .flow-tab:nth-child(5) .flow-tab-num { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+        .flow-tab-title { font-size: 14px; font-weight: 700; color: #64748b; transition: color 0.4s; }
+        .flow-tab.active .flow-tab-title { color: #e2e8f0; }
+
+        /* Progress bar under active tab */
+        .flow-tab-progress { height: 3px; border-radius: 2px; margin-top: 10px; background: rgba(255,255,255,0.06); overflow: hidden; }
+        .flow-tab-progress-bar { height: 100%; width: 0%; border-radius: 2px; transition: width 2s linear; }
+        .flow-tab.active .flow-tab-progress-bar { width: 100%; }
+        .flow-tab:nth-child(1) .flow-tab-progress-bar { background: linear-gradient(90deg, #a855f7, #c084fc); }
+        .flow-tab:nth-child(2) .flow-tab-progress-bar { background: linear-gradient(90deg, #3b82f6, #93c5fd); }
+        .flow-tab:nth-child(3) .flow-tab-progress-bar { background: linear-gradient(90deg, #f97316, #fdba74); }
+        .flow-tab:nth-child(4) .flow-tab-progress-bar { background: linear-gradient(90deg, #22c55e, #86efac); }
+        .flow-tab:nth-child(5) .flow-tab-progress-bar { background: linear-gradient(90deg, #06b6d4, #67e8f9); }
+
+        /* Content panel */
+        .flow-content { margin-top: 32px; min-height: 280px; position: relative; }
+        .flow-panel { display: none; animation: flowFadeIn 0.5s ease; border-radius: 20px; padding: 40px; border: 1px solid rgba(255,255,255,0.06); }
+        .flow-panel.active { display: flex; gap: 40px; align-items: center; }
+        .flow-panel-text { flex: 1; }
+        .flow-panel-visual { flex: 1; display: flex; justify-content: center; align-items: center; }
+        .flow-panel h3 { font-size: 28px; font-weight: 900; margin-bottom: 12px; }
+        .flow-panel p { font-size: 15px; color: #94a3b8; line-height: 1.7; margin-bottom: 16px; }
+        .flow-panel-features { list-style: none; }
+        .flow-panel-features li { font-size: 13px; color: #cbd5e1; padding: 6px 0; display: flex; align-items: center; gap: 10px; }
+        .flow-panel-features li .check { width: 20px; height: 20px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; flex-shrink: 0; }
+
+        .flow-panel:nth-child(1) { background: linear-gradient(135deg, rgba(168,85,247,0.08), rgba(168,85,247,0.02)); border-color: rgba(168,85,247,0.15); }
+        .flow-panel:nth-child(1) h3 { color: #c084fc; }
+        .flow-panel:nth-child(1) .check { background: #a855f7; }
+        .flow-panel:nth-child(2) { background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02)); border-color: rgba(59,130,246,0.15); }
+        .flow-panel:nth-child(2) h3 { color: #93c5fd; }
+        .flow-panel:nth-child(2) .check { background: #3b82f6; }
+        .flow-panel:nth-child(3) { background: linear-gradient(135deg, rgba(249,115,22,0.08), rgba(249,115,22,0.02)); border-color: rgba(249,115,22,0.15); }
+        .flow-panel:nth-child(3) h3 { color: #fdba74; }
+        .flow-panel:nth-child(3) .check { background: #f97316; }
+        .flow-panel:nth-child(4) { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02)); border-color: rgba(34,197,94,0.15); }
+        .flow-panel:nth-child(4) h3 { color: #86efac; }
+        .flow-panel:nth-child(4) .check { background: #22c55e; }
+        .flow-panel:nth-child(5) { background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(6,182,212,0.02)); border-color: rgba(6,182,212,0.15); }
+        .flow-panel:nth-child(5) h3 { color: #67e8f9; }
+        .flow-panel:nth-child(5) .check { background: #06b6d4; }
+
+        /* Visual cards inside panels */
+        .flow-visual-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px; width: 100%; max-width: 380px; }
+        .flow-visual-card .code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #94a3b8; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; margin-top: 12px; line-height: 1.6; white-space: pre; overflow-x: auto; }
+        .flow-visual-card .mini-stat { display: flex; gap: 16px; margin-top: 12px; }
+        .flow-visual-card .mini-stat div { text-align: center; }
+        .flow-visual-card .mini-stat .num { font-size: 22px; font-weight: 900; }
+        .flow-visual-card .mini-stat .lbl { font-size: 10px; color: #64748b; }
+
+        @keyframes flowFadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
         /* ── FEATURE GRID ───────────────────────────────────────── */
         .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
@@ -194,38 +245,190 @@
     <div class="flow-inner">
         <div style="text-align:center;">
             <div class="section-label">How It Works</div>
-            <div class="section-title" style="margin:0 auto;">Build &rarr; Route &rarr; Guard &rarr; Observe &rarr; Evaluate</div>
-            <div class="section-subtitle" style="margin:0 auto 0;">Five pillars of production-grade AI operations, unified in one platform.</div>
+            <div class="section-title" style="margin:0 auto;">Five pillars of production AI</div>
+            <div class="section-subtitle" style="margin:0 auto;">Connect your providers, route intelligently, guard against risks, observe everything, and evaluate quality &mdash; continuously.</div>
         </div>
-        <div class="flow-steps">
-            <div class="flow-step">
-                <div class="flow-num">1</div>
-                <div class="flow-step-title">Connect</div>
-                <div class="flow-step-detail">Add your API keys for any provider. Create virtual keys with budgets and permissions for your teams.</div>
-                <span class="flow-arrow">&rarr;</span>
+
+        <!-- Animated Tab Bar -->
+        <div class="flow-tabs" id="flowTabs">
+            <div class="flow-tab active" data-index="0" onclick="setFlowTab(0)">
+                <div class="flow-tab-num">1</div>
+                <div class="flow-tab-title">Connect</div>
+                <div class="flow-tab-progress"><div class="flow-tab-progress-bar"></div></div>
             </div>
-            <div class="flow-step">
-                <div class="flow-num">2</div>
-                <div class="flow-step-title">Route</div>
-                <div class="flow-step-detail">Intelligent routing picks the best model by cost, latency, or reliability. Fallbacks and canary testing built in.</div>
-                <span class="flow-arrow">&rarr;</span>
+            <div class="flow-tab" data-index="1" onclick="setFlowTab(1)">
+                <div class="flow-tab-num">2</div>
+                <div class="flow-tab-title">Route</div>
+                <div class="flow-tab-progress"><div class="flow-tab-progress-bar"></div></div>
             </div>
-            <div class="flow-step">
-                <div class="flow-num">3</div>
-                <div class="flow-step-title">Guard</div>
-                <div class="flow-step-detail">PII detection and redaction, content safety filters, topic restrictions, and output schema validation before and after every call.</div>
-                <span class="flow-arrow">&rarr;</span>
+            <div class="flow-tab" data-index="2" onclick="setFlowTab(2)">
+                <div class="flow-tab-num">3</div>
+                <div class="flow-tab-title">Guard</div>
+                <div class="flow-tab-progress"><div class="flow-tab-progress-bar"></div></div>
             </div>
-            <div class="flow-step">
-                <div class="flow-num">4</div>
-                <div class="flow-step-title">Observe</div>
-                <div class="flow-step-detail">Full OpenTelemetry traces, 8 custom metrics, structured logs. 19 Grafana dashboards with cost intelligence and SLO tracking.</div>
-                <span class="flow-arrow">&rarr;</span>
+            <div class="flow-tab" data-index="3" onclick="setFlowTab(3)">
+                <div class="flow-tab-num">4</div>
+                <div class="flow-tab-title">Observe</div>
+                <div class="flow-tab-progress"><div class="flow-tab-progress-bar"></div></div>
             </div>
-            <div class="flow-step">
-                <div class="flow-num">5</div>
-                <div class="flow-step-title">Evaluate</div>
-                <div class="flow-step-detail">LLM-as-judge scoring across 6 criteria. Batch evaluations on datasets. Track quality over time.</div>
+            <div class="flow-tab" data-index="4" onclick="setFlowTab(4)">
+                <div class="flow-tab-num">5</div>
+                <div class="flow-tab-title">Evaluate</div>
+                <div class="flow-tab-progress"><div class="flow-tab-progress-bar"></div></div>
+            </div>
+        </div>
+
+        <!-- Content Panels -->
+        <div class="flow-content" id="flowContent">
+            <!-- Panel 1: Connect -->
+            <div class="flow-panel active">
+                <div class="flow-panel-text">
+                    <h3>Connect your providers</h3>
+                    <p>Add API keys for any LLM provider. Create virtual keys with per-team budgets, rate limits, and model-level permissions.</p>
+                    <ul class="flow-panel-features">
+                        <li><span class="check">&#10003;</span> 6 providers: OpenAI, Anthropic, Vertex AI, Bedrock, Cohere, Azure</li>
+                        <li><span class="check">&#10003;</span> Virtual keys with sk-llmo-xxx format</li>
+                        <li><span class="check">&#10003;</span> Per-key budgets and spend tracking</li>
+                        <li><span class="check">&#10003;</span> Provider and model-level permissions</li>
+                    </ul>
+                </div>
+                <div class="flow-panel-visual">
+                    <div class="flow-visual-card">
+                        <div style="font-size:13px;font-weight:700;color:#c084fc;">Create a virtual key</div>
+                        <div class="code">POST /api/keys
+{
+  "name": "prod-key",
+  "owner": "ml-team",
+  "budget_usd": 100.00,
+  "allowed_providers": ["openai"]
+}
+
+&#8594; { "key": "sk-llmo-a1b2c3..." }</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 2: Route -->
+            <div class="flow-panel">
+                <div class="flow-panel-text">
+                    <h3>Route intelligently</h3>
+                    <p>Six routing strategies automatically pick the best model based on cost, latency, or reliability. Built-in fallback chains and canary testing.</p>
+                    <ul class="flow-panel-features">
+                        <li><span class="check">&#10003;</span> Cost-optimized: route to cheapest model</li>
+                        <li><span class="check">&#10003;</span> Latency-optimized: route to fastest provider</li>
+                        <li><span class="check">&#10003;</span> Fallback chains: auto-retry on failure</li>
+                        <li><span class="check">&#10003;</span> Canary: A/B test new models with traffic splits</li>
+                    </ul>
+                </div>
+                <div class="flow-panel-visual">
+                    <div class="flow-visual-card">
+                        <div style="font-size:13px;font-weight:700;color:#93c5fd;">6 Routing Strategies</div>
+                        <div class="mini-stat">
+                            <div><div class="num" style="color:#a855f7;">&#9632;</div><div class="lbl">Single</div></div>
+                            <div><div class="num" style="color:#3b82f6;">&#9632;</div><div class="lbl">Fallback</div></div>
+                            <div><div class="num" style="color:#22c55e;">&#9632;</div><div class="lbl">Load Bal</div></div>
+                            <div><div class="num" style="color:#f97316;">&#9632;</div><div class="lbl">Cost</div></div>
+                            <div><div class="num" style="color:#06b6d4;">&#9632;</div><div class="lbl">Latency</div></div>
+                            <div><div class="num" style="color:#ec4899;">&#9632;</div><div class="lbl">Canary</div></div>
+                        </div>
+                        <div class="code">PUT /api/routing/config
+{
+  "strategy": "cost",
+  "targets": [
+    {"provider":"openai","model":"gpt-4o-mini"},
+    {"provider":"anthropic","model":"claude-haiku-4-5"}
+  ]
+}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 3: Guard -->
+            <div class="flow-panel">
+                <div class="flow-panel-text">
+                    <h3>Guard every request</h3>
+                    <p>18 PII detection patterns catch emails, phone numbers, SSNs, credit cards, and API keys before they reach the LLM. Content safety and output validation built in.</p>
+                    <ul class="flow-panel-features">
+                        <li><span class="check">&#10003;</span> 18 PII patterns with automatic redaction</li>
+                        <li><span class="check">&#10003;</span> Content safety filtering</li>
+                        <li><span class="check">&#10003;</span> Topic restriction with word-boundary matching</li>
+                        <li><span class="check">&#10003;</span> JSON schema and regex output validation</li>
+                    </ul>
+                </div>
+                <div class="flow-panel-visual">
+                    <div class="flow-visual-card">
+                        <div style="font-size:13px;font-weight:700;color:#fdba74;">PII Redaction</div>
+                        <div class="code">POST /api/guardrails/redact
+{ "text": "Email john@acme.com,
+   SSN 123-45-6789" }
+
+&#8594; "Email <span style="color:#f43f5e;">[EMAIL_REDACTED]</span>,
+   SSN <span style="color:#f43f5e;">[SSN_REDACTED]</span>"</div>
+                        <div class="mini-stat" style="margin-top:16px;">
+                            <div><div class="num" style="color:#f97316;">18</div><div class="lbl">PII Patterns</div></div>
+                            <div><div class="num" style="color:#f43f5e;">0.95</div><div class="lbl">Confidence</div></div>
+                            <div><div class="num" style="color:#f59e0b;">&lt;1ms</div><div class="lbl">Latency</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 4: Observe -->
+            <div class="flow-panel">
+                <div class="flow-panel-text">
+                    <h3>Observe everything</h3>
+                    <p>Full OpenTelemetry instrumentation emits traces, metrics, and structured logs for every LLM call. 19 Grafana dashboards cover cost intelligence, reliability engineering, and model comparison.</p>
+                    <ul class="flow-panel-features">
+                        <li><span class="check">&#10003;</span> Traces with GenAI semantic conventions &rarr; Tempo</li>
+                        <li><span class="check">&#10003;</span> 8 custom metrics (cost, tokens, latency, TTFT) &rarr; Prometheus</li>
+                        <li><span class="check">&#10003;</span> Structured JSON logs &rarr; Loki</li>
+                        <li><span class="check">&#10003;</span> 19 auto-provisioned Grafana dashboards</li>
+                    </ul>
+                </div>
+                <div class="flow-panel-visual">
+                    <div class="flow-visual-card">
+                        <div style="font-size:13px;font-weight:700;color:#86efac;">Grafana LGTM Stack</div>
+                        <div class="mini-stat" style="margin-top:16px;">
+                            <div><div class="num" style="color:#22c55e;">19</div><div class="lbl">Dashboards</div></div>
+                            <div><div class="num" style="color:#3b82f6;">8</div><div class="lbl">Metrics</div></div>
+                            <div><div class="num" style="color:#8b5cf6;">3</div><div class="lbl">Signals</div></div>
+                        </div>
+                        <div class="code">Traces  &#8594; Grafana Tempo
+Metrics &#8594; Prometheus
+Logs    &#8594; Grafana Loki
+           &#8595;
+    Grafana (19 dashboards)
+    &#8226; Reliability Engineering
+    &#8226; Cost Intelligence
+    &#8226; Model Comparison
+    &#8226; Agent Sessions</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 5: Evaluate -->
+            <div class="flow-panel">
+                <div class="flow-panel-text">
+                    <h3>Evaluate quality</h3>
+                    <p>LLM-as-judge scoring evaluates every response across 6 criteria. Run batch evaluations on datasets and track quality trends over time.</p>
+                    <ul class="flow-panel-features">
+                        <li><span class="check">&#10003;</span> 6 criteria: Relevance, Faithfulness, Helpfulness, Coherence, Toxicity, Custom</li>
+                        <li><span class="check">&#10003;</span> Batch evaluation across datasets</li>
+                        <li><span class="check">&#10003;</span> Dataset management for test suites</li>
+                        <li><span class="check">&#10003;</span> Score distribution analytics</li>
+                    </ul>
+                </div>
+                <div class="flow-panel-visual">
+                    <div class="flow-visual-card">
+                        <div style="font-size:13px;font-weight:700;color:#67e8f9;">Evaluation Scores</div>
+                        <div style="margin-top:16px;">
+                            <div style="display:flex;align-items:center;gap:10px;margin:8px 0;"><span style="font-size:11px;color:#94a3b8;width:90px;">Relevance</span><div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;"><div style="width:92%;height:100%;background:linear-gradient(90deg,#06b6d4,#22c55e);border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#67e8f9;">0.92</span></div>
+                            <div style="display:flex;align-items:center;gap:10px;margin:8px 0;"><span style="font-size:11px;color:#94a3b8;width:90px;">Helpfulness</span><div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;"><div style="width:88%;height:100%;background:linear-gradient(90deg,#06b6d4,#22c55e);border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#67e8f9;">0.88</span></div>
+                            <div style="display:flex;align-items:center;gap:10px;margin:8px 0;"><span style="font-size:11px;color:#94a3b8;width:90px;">Coherence</span><div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;"><div style="width:95%;height:100%;background:linear-gradient(90deg,#06b6d4,#22c55e);border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#67e8f9;">0.95</span></div>
+                            <div style="display:flex;align-items:center;gap:10px;margin:8px 0;"><span style="font-size:11px;color:#94a3b8;width:90px;">Toxicity</span><div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;"><div style="width:98%;height:100%;background:linear-gradient(90deg,#22c55e,#86efac);border-radius:4px;"></div></div><span style="font-size:12px;font-weight:700;color:#86efac;">0.98</span></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -345,6 +548,58 @@
     window.addEventListener('scroll', function() {
         document.getElementById('topnav').classList.toggle('scrolled', window.scrollY > 20);
     });
+
+    // ── How It Works: Auto-cycling animated tabs ──
+    var flowIndex = 0;
+    var flowTimer = null;
+    var FLOW_INTERVAL = 2000; // 2 seconds per tab
+    var FLOW_COUNT = 5;
+
+    function setFlowTab(index) {
+        flowIndex = index;
+
+        // Reset all progress bars instantly
+        document.querySelectorAll('.flow-tab-progress-bar').forEach(function(bar) {
+            bar.style.transition = 'none';
+            bar.style.width = '0%';
+        });
+
+        // Update tabs
+        document.querySelectorAll('.flow-tab').forEach(function(tab, i) {
+            tab.classList.toggle('active', i === index);
+        });
+
+        // Update panels
+        document.querySelectorAll('.flow-panel').forEach(function(panel, i) {
+            panel.classList.toggle('active', i === index);
+        });
+
+        // Animate progress bar of active tab (force reflow first)
+        var activeBar = document.querySelectorAll('.flow-tab-progress-bar')[index];
+        void activeBar.offsetWidth; // force reflow
+        activeBar.style.transition = 'width ' + (FLOW_INTERVAL / 1000) + 's linear';
+        activeBar.style.width = '100%';
+
+        // Reset auto-cycle timer
+        clearInterval(flowTimer);
+        flowTimer = setInterval(nextFlowTab, FLOW_INTERVAL);
+    }
+
+    function nextFlowTab() {
+        setFlowTab((flowIndex + 1) % FLOW_COUNT);
+    }
+
+    // Start auto-cycling
+    flowTimer = setInterval(nextFlowTab, FLOW_INTERVAL);
+
+    // Animate the first tab's progress bar on load
+    setTimeout(function() {
+        var firstBar = document.querySelector('.flow-tab.active .flow-tab-progress-bar');
+        if (firstBar) {
+            firstBar.style.transition = 'width ' + (FLOW_INTERVAL / 1000) + 's linear';
+            firstBar.style.width = '100%';
+        }
+    }, 100);
 </script>
 </body>
 </html>
