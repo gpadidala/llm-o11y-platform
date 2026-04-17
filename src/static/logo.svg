@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="50%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="innerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7"/>
+      <stop offset="100%" style="stop-color:#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="pulseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c084fc;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#22d3ee;stop-opacity:0.1"/>
+    </linearGradient>
+    <linearGradient id="waveGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#a855f7"/>
+      <stop offset="100%" style="stop-color:#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="waveGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#22c55e"/>
+      <stop offset="100%" style="stop-color:#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="waveGrad3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f97316"/>
+      <stop offset="100%" style="stop-color:#f43f5e"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer glow ring -->
+  <circle cx="300" cy="280" r="200" fill="url(#pulseGrad)" filter="url(#softGlow)"/>
+
+  <!-- Main circle background -->
+  <circle cx="300" cy="280" r="150" fill="url(#bgGrad)" opacity="0.12"/>
+  <circle cx="300" cy="280" r="150" fill="none" stroke="url(#bgGrad)" stroke-width="3" opacity="0.4"/>
+
+  <!-- Inner hexagon shape -->
+  <polygon points="300,145 434,212 434,348 300,415 166,348 166,212" fill="url(#bgGrad)" opacity="0.08"/>
+  <polygon points="300,145 434,212 434,348 300,415 166,348 166,212" fill="none" stroke="url(#innerGrad)" stroke-width="2.5" opacity="0.5"/>
+
+  <!-- AI Brain / Neural network nodes -->
+  <!-- Center node -->
+  <circle cx="300" cy="280" r="22" fill="url(#bgGrad)" filter="url(#glow)"/>
+  <circle cx="300" cy="280" r="10" fill="white" opacity="0.9"/>
+
+  <!-- Surrounding nodes -->
+  <circle cx="230" cy="220" r="12" fill="#a855f7" opacity="0.8"/>
+  <circle cx="370" cy="220" r="12" fill="#3b82f6" opacity="0.8"/>
+  <circle cx="230" cy="340" r="12" fill="#22c55e" opacity="0.8"/>
+  <circle cx="370" cy="340" r="12" fill="#06b6d4" opacity="0.8"/>
+  <circle cx="200" cy="280" r="10" fill="#f97316" opacity="0.7"/>
+  <circle cx="400" cy="280" r="10" fill="#ec4899" opacity="0.7"/>
+  <circle cx="300" cy="180" r="10" fill="#8b5cf6" opacity="0.7"/>
+  <circle cx="300" cy="380" r="10" fill="#14b8a6" opacity="0.7"/>
+
+  <!-- Connections from center -->
+  <line x1="300" y1="280" x2="230" y2="220" stroke="url(#waveGrad1)" stroke-width="2" opacity="0.5"/>
+  <line x1="300" y1="280" x2="370" y2="220" stroke="url(#waveGrad1)" stroke-width="2" opacity="0.5"/>
+  <line x1="300" y1="280" x2="230" y2="340" stroke="url(#waveGrad2)" stroke-width="2" opacity="0.5"/>
+  <line x1="300" y1="280" x2="370" y2="340" stroke="url(#waveGrad2)" stroke-width="2" opacity="0.5"/>
+  <line x1="300" y1="280" x2="200" y2="280" stroke="url(#waveGrad3)" stroke-width="1.5" opacity="0.4"/>
+  <line x1="300" y1="280" x2="400" y2="280" stroke="url(#waveGrad3)" stroke-width="1.5" opacity="0.4"/>
+  <line x1="300" y1="280" x2="300" y2="180" stroke="url(#waveGrad1)" stroke-width="1.5" opacity="0.4"/>
+  <line x1="300" y1="280" x2="300" y2="380" stroke="url(#waveGrad2)" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Outer ring connections -->
+  <line x1="230" y1="220" x2="370" y2="220" stroke="#a855f7" stroke-width="1" opacity="0.25"/>
+  <line x1="370" y1="220" x2="370" y2="340" stroke="#3b82f6" stroke-width="1" opacity="0.25"/>
+  <line x1="370" y1="340" x2="230" y2="340" stroke="#22c55e" stroke-width="1" opacity="0.25"/>
+  <line x1="230" y1="340" x2="230" y2="220" stroke="#f97316" stroke-width="1" opacity="0.25"/>
+
+  <!-- Signal wave lines (representing observability) -->
+  <path d="M210 160 Q230 148 250 160 Q270 172 290 160 Q310 148 330 160 Q350 172 370 160 Q390 148 410 160" fill="none" stroke="url(#waveGrad1)" stroke-width="2.5" opacity="0.6" stroke-linecap="round"/>
+  <path d="M220 400 Q240 388 260 400 Q280 412 300 400 Q320 388 340 400 Q360 412 380 400" fill="none" stroke="url(#waveGrad2)" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+
+  <!-- Eye / Observability symbol in center -->
+  <ellipse cx="300" cy="280" rx="35" ry="18" fill="none" stroke="white" stroke-width="2.5" opacity="0.8"/>
+  <circle cx="300" cy="280" r="7" fill="white" opacity="0.9"/>
+
+  <!-- Small dots for data particles -->
+  <circle cx="250" cy="195" r="3" fill="#c084fc" opacity="0.6"/>
+  <circle cx="350" cy="195" r="3" fill="#93c5fd" opacity="0.6"/>
+  <circle cx="175" cy="260" r="3" fill="#fdba74" opacity="0.6"/>
+  <circle cx="425" cy="300" r="3" fill="#f9a8d4" opacity="0.6"/>
+  <circle cx="250" cy="365" r="3" fill="#86efac" opacity="0.6"/>
+  <circle cx="350" cy="365" r="3" fill="#67e8f9" opacity="0.6"/>
+
+  <!-- Text -->
+  <text x="300" y="475" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-weight="900" font-size="52" fill="url(#bgGrad)" letter-spacing="-1">LLM O11y</text>
+  <text x="300" y="510" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-weight="600" font-size="18" fill="#64748b" letter-spacing="6">AI GATEWAY</text>
+</svg>
