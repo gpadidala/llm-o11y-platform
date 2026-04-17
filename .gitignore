@@ -35,3 +35,4 @@ tempo-data/
 prometheus-data/
 loki-data/
 grafana-data/
+.data/users.json

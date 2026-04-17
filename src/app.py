@@ -47,7 +47,7 @@ import httpx
 import structlog
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -130,6 +130,18 @@ try:
     from src.eval.datasets import dataset_store  # DatasetStore instance
 except ImportError:
     dataset_store = None  # type: ignore[assignment]
+
+try:
+    from src.auth.manager import auth_manager  # AuthManager instance
+    from src.auth.models import Role, User
+    from src.auth.middleware import get_current_user, require_auth, require_role
+except ImportError:
+    auth_manager = None  # type: ignore[assignment]
+    Role = None  # type: ignore[assignment]
+    User = None  # type: ignore[assignment]
+    get_current_user = None  # type: ignore[assignment]
+    require_auth = None  # type: ignore[assignment]
+    require_role = None  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -342,6 +354,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "guardrails_engine": guardrails_engine is not None,
         "eval_judge": eval_judge is not None,
         "dataset_store": dataset_store is not None,
+        "auth_manager": auth_manager is not None,
     }
     logger.info("subsystem_status", **subsystems)
 
@@ -395,6 +408,19 @@ if eval_router is not None:
 
 
 # ---------------------------------------------------------------------------
+# Auth helper -- inject current user into template context
+# ---------------------------------------------------------------------------
+
+async def _user_context(request: Request) -> dict:
+    """Build template context dict with current_user for RBAC-aware rendering."""
+    ctx: dict = {"request": request, "current_user": None}
+    if auth_manager is not None and get_current_user is not None:
+        user = await get_current_user(request)
+        ctx["current_user"] = user
+    return ctx
+
+
+# ---------------------------------------------------------------------------
 # Web UI pages
 # ---------------------------------------------------------------------------
 
@@ -408,61 +434,81 @@ async def ui_landing(request: Request):
 @app.get("/dashboard", response_class=HTMLResponse)
 async def ui_dashboard(request: Request):
     """Analytics dashboard page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "dashboard"
+    return templates.TemplateResponse("index.html", ctx)
 
 
 @app.get("/settings", response_class=HTMLResponse)
 async def ui_settings(request: Request):
     """Settings configuration page."""
-    return templates.TemplateResponse("settings.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "settings"
+    return templates.TemplateResponse("settings.html", ctx)
 
 
 @app.get("/providers", response_class=HTMLResponse)
 async def ui_providers(request: Request):
     """Provider status page."""
-    return templates.TemplateResponse("providers.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "providers"
+    return templates.TemplateResponse("providers.html", ctx)
 
 
 @app.get("/playground", response_class=HTMLResponse)
 async def ui_playground(request: Request):
     """Interactive LLM playground page."""
-    return templates.TemplateResponse("playground.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "playground"
+    return templates.TemplateResponse("playground.html", ctx)
 
 
 @app.get("/prompts", response_class=HTMLResponse)
 async def ui_prompts(request: Request):
     """Prompt template management page."""
-    return templates.TemplateResponse("prompts.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "prompts"
+    return templates.TemplateResponse("prompts.html", ctx)
 
 
 @app.get("/logs", response_class=HTMLResponse)
 async def ui_logs(request: Request):
     """Request logs viewer page."""
-    return templates.TemplateResponse("logs.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "logs"
+    return templates.TemplateResponse("logs.html", ctx)
 
 
 @app.get("/keys", response_class=HTMLResponse)
 async def ui_keys(request: Request):
     """Virtual key management page."""
-    return templates.TemplateResponse("keys.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "keys"
+    return templates.TemplateResponse("keys.html", ctx)
 
 
 @app.get("/eval", response_class=HTMLResponse)
 async def ui_eval(request: Request):
     """Evaluation dashboard page."""
-    return templates.TemplateResponse("eval.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "eval"
+    return templates.TemplateResponse("eval.html", ctx)
 
 
 @app.get("/guardrails", response_class=HTMLResponse)
 async def ui_guardrails(request: Request):
     """Guardrails configuration page."""
-    return templates.TemplateResponse("guardrails.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "guardrails"
+    return templates.TemplateResponse("guardrails.html", ctx)
 
 
 @app.get("/routing", response_class=HTMLResponse)
 async def ui_routing(request: Request):
     """Routing configuration page."""
-    return templates.TemplateResponse("routing.html", {"request": request})
+    ctx = await _user_context(request)
+    ctx["active_page"] = "routing"
+    return templates.TemplateResponse("routing.html", ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -903,6 +949,284 @@ async def get_request_log_detail(request_id: str):
     if log is None:
         raise HTTPException(status_code=404, detail=f"Request log not found: {request_id}")
     return log.model_dump()
+
+
+# ---------------------------------------------------------------------------
+# Authentication routes (login / logout / admin page)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Render the login page."""
+    if auth_manager is None:
+        return RedirectResponse("/dashboard", status_code=302)
+    # If already logged in, redirect to dashboard
+    if get_current_user is not None:
+        user = await get_current_user(request)
+        if user is not None:
+            return RedirectResponse("/dashboard", status_code=302)
+    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+
+
+@app.post("/login")
+async def login_submit(request: Request):
+    """Handle login form submission."""
+    if auth_manager is None:
+        return RedirectResponse("/dashboard", status_code=302)
+    form = await request.form()
+    username = form.get("username", "")
+    password = form.get("password", "")
+    session_id = auth_manager.authenticate(str(username), str(password))
+    if not session_id:
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": "Invalid username or password"},
+        )
+    response = RedirectResponse("/dashboard", status_code=302)
+    response.set_cookie("session_id", session_id, httponly=True, max_age=86400, samesite="lax")
+    return response
+
+
+@app.get("/logout")
+async def logout(request: Request):
+    """Log out the current user."""
+    session_id = request.cookies.get("session_id")
+    if session_id and auth_manager is not None:
+        auth_manager.logout(session_id)
+    response = RedirectResponse("/login", status_code=302)
+    response.delete_cookie("session_id")
+    return response
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    """Admin panel page (admin role required)."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    ctx = await _user_context(request)
+    user = ctx.get("current_user")
+    if user is None:
+        return RedirectResponse("/login", status_code=302)
+    if require_role is not None:
+        require_role(user, Role.ADMIN)
+    ctx["active_page"] = "admin"
+    return templates.TemplateResponse("admin.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# User Management API (/api/users/*)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/users/me")
+async def get_current_user_info(request: Request):
+    """Returns current logged-in user info."""
+    if auth_manager is None:
+        return {"user": None, "auth_enabled": False}
+    if get_current_user is None:
+        return {"user": None, "auth_enabled": False}
+    user = await get_current_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    data = user.model_dump()
+    data["password_hash"] = "***"
+    return {"user": data}
+
+
+@app.post("/api/users")
+async def create_user_api(request: Request):
+    """Create a new user (admin only)."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    # Check admin permission
+    if get_current_user is not None:
+        caller = await get_current_user(request)
+        if caller is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if require_role is not None:
+            require_role(caller, Role.ADMIN)
+
+    body = await request.json()
+    try:
+        role_val = body.get("role", "viewer")
+        role_enum = Role(role_val) if Role is not None else role_val
+        user = auth_manager.create_user(
+            username=body.get("username", ""),
+            email=body.get("email", ""),
+            password=body.get("password", "changeme"),
+            role=role_enum,
+            display_name=body.get("display_name", ""),
+            teams=body.get("teams", []),
+        )
+        data = user.model_dump()
+        data["password_hash"] = "***"
+        return {"user": data}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/users")
+async def list_users_api(request: Request):
+    """List all users (admin only)."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    if get_current_user is not None:
+        caller = await get_current_user(request)
+        if caller is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if require_role is not None:
+            require_role(caller, Role.ADMIN)
+    return {"users": auth_manager.list_users()}
+
+
+@app.get("/api/users/{user_id}")
+async def get_user_api(request: Request, user_id: str):
+    """Get user by ID."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    if get_current_user is not None:
+        caller = await get_current_user(request)
+        if caller is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+    user = auth_manager.get_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
+    data = user.model_dump()
+    data["password_hash"] = "***"
+    return {"user": data}
+
+
+@app.put("/api/users/{user_id}")
+async def update_user_api(request: Request, user_id: str):
+    """Update user properties (admin only)."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    if get_current_user is not None:
+        caller = await get_current_user(request)
+        if caller is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if require_role is not None:
+            require_role(caller, Role.ADMIN)
+
+    body = await request.json()
+    kwargs = {}
+    if "role" in body and Role is not None:
+        kwargs["role"] = Role(body["role"])
+    if "enabled" in body:
+        kwargs["enabled"] = bool(body["enabled"])
+    if "display_name" in body:
+        kwargs["display_name"] = body["display_name"]
+    if "teams" in body:
+        kwargs["teams"] = body["teams"]
+    if "email" in body:
+        kwargs["email"] = body["email"]
+
+    user = auth_manager.update_user(user_id, **kwargs)
+    if user is None:
+        raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
+    data = user.model_dump()
+    data["password_hash"] = "***"
+    return {"user": data}
+
+
+@app.delete("/api/users/{user_id}")
+async def delete_user_api(request: Request, user_id: str):
+    """Delete a user (admin only)."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    if get_current_user is not None:
+        caller = await get_current_user(request)
+        if caller is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if require_role is not None:
+            require_role(caller, Role.ADMIN)
+
+    success = auth_manager.delete_user(user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
+    return {"status": "deleted", "user_id": user_id}
+
+
+@app.put("/api/users/{user_id}/password")
+async def change_password_api(request: Request, user_id: str):
+    """Change user password (admin only)."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    if get_current_user is not None:
+        caller = await get_current_user(request)
+        if caller is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if require_role is not None:
+            require_role(caller, Role.ADMIN)
+
+    body = await request.json()
+    new_password = body.get("password", "")
+    if not new_password:
+        raise HTTPException(status_code=400, detail="Password cannot be empty")
+
+    success = auth_manager.change_password(user_id, new_password)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
+    return {"status": "password_changed", "user_id": user_id}
+
+
+# ---------------------------------------------------------------------------
+# Sessions API (/api/sessions/*)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/sessions")
+async def list_sessions_api(request: Request):
+    """List active sessions (admin only)."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    if get_current_user is not None:
+        caller = await get_current_user(request)
+        if caller is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if require_role is not None:
+            require_role(caller, Role.ADMIN)
+    return {"sessions": auth_manager.list_sessions()}
+
+
+@app.delete("/api/sessions/{session_id}")
+async def revoke_session_api(request: Request, session_id: str):
+    """Revoke a specific session (admin only)."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    if get_current_user is not None:
+        caller = await get_current_user(request)
+        if caller is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if require_role is not None:
+            require_role(caller, Role.ADMIN)
+
+    success = auth_manager.revoke_session(session_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"status": "revoked", "session_id": session_id}
+
+
+# ---------------------------------------------------------------------------
+# Admin System Info API
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/admin/system-info")
+async def admin_system_info(request: Request):
+    """Get system info for admin page (admin only)."""
+    if auth_manager is None:
+        raise HTTPException(status_code=501, detail="Auth module not available")
+    if get_current_user is not None:
+        caller = await get_current_user(request)
+        if caller is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if require_role is not None:
+            require_role(caller, Role.ADMIN)
+    return {"system_info": auth_manager.get_system_info()}
 
 
 # ---------------------------------------------------------------------------
