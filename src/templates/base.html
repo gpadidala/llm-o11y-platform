@@ -1417,9 +1417,54 @@
     </style>
 </head>
 <body>
-    <div class="layout">
+    <!-- ═══ TOP NAVIGATION BAR (same as landing page) ═══ -->
+    <nav style="
+        position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 52px;
+        display: flex; align-items: center; padding: 0 24px; gap: 6px;
+        background: rgba(10,14,23,0.92); backdrop-filter: blur(16px);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    ">
+        <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;margin-right:16px;">
+            <img src="/static/logo.svg" alt="Logo" style="width:26px;height:26px;">
+            <span style="font-size:15px;font-weight:800;background:linear-gradient(135deg,#a855f7,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">LLM O11y</span>
+        </a>
+        <a href="/dashboard" class="topnav-link {% if active_page == 'dashboard' %}topnav-active{% endif %}">Dashboard</a>
+        <a href="/playground" class="topnav-link {% if active_page == 'playground' %}topnav-active{% endif %}">Playground</a>
+        <a href="/prompts" class="topnav-link {% if active_page == 'prompts' %}topnav-active{% endif %}">Prompts</a>
+        <a href="/logs" class="topnav-link {% if active_page == 'logs' %}topnav-active{% endif %}">Logs</a>
+        <a href="/eval" class="topnav-link {% if active_page == 'eval' %}topnav-active{% endif %}">Evaluation</a>
+        <a href="/keys" class="topnav-link {% if active_page == 'keys' %}topnav-active{% endif %}">API Keys</a>
+        <a href="/guardrails" class="topnav-link {% if active_page == 'guardrails' %}topnav-active{% endif %}">Guardrails</a>
+        <a href="/routing" class="topnav-link {% if active_page == 'routing' %}topnav-active{% endif %}">Routing</a>
+        <a href="/providers" class="topnav-link {% if active_page == 'providers' %}topnav-active{% endif %}">Providers</a>
+        <a href="/settings" class="topnav-link {% if active_page == 'settings' %}topnav-active{% endif %}">Settings</a>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+            <a href="/docs" target="_blank" class="topnav-link">API Docs</a>
+            <a href="https://github.com/gpadidala/llm-o11y-platform" target="_blank" class="topnav-link">GitHub</a>
+        </div>
+    </nav>
+    <style>
+        .topnav-link {
+            padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+            text-decoration: none; transition: all 0.25s;
+            background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(59,130,246,0.15));
+            border: 1px solid rgba(168,85,247,0.2); color: #c084fc;
+        }
+        .topnav-link:hover {
+            background: linear-gradient(135deg, #a855f7, #3b82f6); color: white;
+            border-color: transparent; box-shadow: 0 4px 16px rgba(168,85,247,0.3);
+            transform: translateY(-1px);
+        }
+        .topnav-active {
+            background: linear-gradient(135deg, #a855f7, #3b82f6) !important;
+            color: white !important; border-color: transparent !important;
+            box-shadow: 0 4px 16px rgba(168,85,247,0.3);
+        }
+    </style>
+
+    <div class="layout" style="padding-top: 52px;">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" style="top: 52px; height: calc(100vh - 52px);">
             <a href="/" class="sidebar-brand" style="text-decoration:none;color:inherit;">
                 <div class="sidebar-logo"><img src="/static/logo.svg" alt="Logo" style="width:32px;height:32px;"></div>
                 <div class="sidebar-brand-text">
