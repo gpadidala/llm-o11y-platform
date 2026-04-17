@@ -5,126 +5,157 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LLM O11y Platform — Architecture</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; background: #0a0e17; color: #e2e8f0; padding: 40px; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #1e293b; padding: 48px 40px; }
 
   .diagram { max-width: 1100px; margin: 0 auto; }
-  .title { text-align: center; margin-bottom: 8px; }
-  .title h1 { font-size: 32px; font-weight: 800; background: linear-gradient(135deg, #a855f7, #3b82f6, #14b8a6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 32px; }
+  .title { text-align: center; margin-bottom: 4px; }
+  .title h1 { font-size: 36px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px; }
+  .subtitle { text-align: center; color: #64748b; font-size: 15px; margin-bottom: 36px; font-weight: 500; }
 
-  .layer { border-radius: 16px; padding: 24px 28px; margin-bottom: 12px; position: relative; border: 1px solid rgba(255,255,255,0.06); }
-  .layer-label { position: absolute; left: -2px; top: 50%; transform: translateY(-50%) rotate(-90deg); font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: 0.9; writing-mode: horizontal-tb; white-space: nowrap; }
-  .layer-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-  .layer-header .icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; }
-  .layer-header h2 { font-size: 16px; font-weight: 700; }
-  .layer-header .tech { font-size: 11px; color: #94a3b8; margin-left: auto; background: rgba(255,255,255,0.06); padding: 3px 10px; border-radius: 20px; }
+  /* Layer wrapper */
+  .layer { border-radius: 20px; padding: 0; margin-bottom: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); position: relative; }
+  .layer-header { padding: 14px 28px; display: flex; align-items: center; gap: 12px; }
+  .layer-header .icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .layer-header h2 { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+  .layer-header .tech { font-size: 11px; margin-left: auto; padding: 4px 12px; border-radius: 20px; font-weight: 600; }
+  .layer-body { padding: 18px 28px 24px; }
 
-  .components { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-  .comp { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 16px; min-width: 150px; flex: 1; max-width: 200px; text-align: center; transition: all 0.2s; }
-  .comp:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); transform: translateY(-2px); }
-  .comp .comp-icon { font-size: 24px; margin-bottom: 6px; }
-  .comp .comp-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
-  .comp .comp-detail { font-size: 10px; color: #94a3b8; line-height: 1.4; }
+  .components { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .comp { background: white; border: 1.5px solid rgba(0,0,0,0.06); border-radius: 14px; padding: 16px 14px; min-width: 155px; flex: 1; max-width: 195px; text-align: center; transition: all 0.2s ease; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .comp:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+  .comp .comp-icon { font-size: 28px; margin-bottom: 6px; }
+  .comp .comp-name { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+  .comp .comp-detail { font-size: 10px; color: #64748b; line-height: 1.5; }
 
-  /* Layer colors */
-  .layer-user { background: linear-gradient(135deg, rgba(168,85,247,0.12), rgba(168,85,247,0.04)); border-color: rgba(168,85,247,0.2); }
-  .layer-user .layer-label { color: #a855f7; }
-  .layer-user .icon { background: #a855f7; }
+  .comp-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 9px; font-weight: 600; margin: 1px; }
 
-  .layer-api { background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04)); border-color: rgba(59,130,246,0.2); }
-  .layer-api .layer-label { color: #3b82f6; }
-  .layer-api .icon { background: #3b82f6; }
+  /* Layer-specific colors */
+  .layer-user { border: 2px solid #c084fc; }
+  .layer-user .layer-header { background: linear-gradient(135deg, #a855f7, #7c3aed); color: white; }
+  .layer-user .layer-header .icon { background: rgba(255,255,255,0.25); }
+  .layer-user .layer-header .tech { background: rgba(255,255,255,0.2); color: white; }
+  .layer-user .layer-body { background: #faf5ff; }
+  .layer-user .comp { border-color: #e9d5ff; }
+  .layer-user .comp-badge { background: #f3e8ff; color: #7c3aed; }
 
-  .layer-engine { background: linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.04)); border-color: rgba(249,115,22,0.2); }
-  .layer-engine .layer-label { color: #f97316; }
-  .layer-engine .icon { background: #f97316; }
+  .layer-api { border: 2px solid #93c5fd; }
+  .layer-api .layer-header { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+  .layer-api .layer-header .icon { background: rgba(255,255,255,0.25); }
+  .layer-api .layer-header .tech { background: rgba(255,255,255,0.2); color: white; }
+  .layer-api .layer-body { background: #eff6ff; }
+  .layer-api .comp { border-color: #bfdbfe; }
+  .layer-api .comp-badge { background: #dbeafe; color: #2563eb; }
 
-  .layer-intel { background: linear-gradient(135deg, rgba(236,72,153,0.12), rgba(236,72,153,0.04)); border-color: rgba(236,72,153,0.2); }
-  .layer-intel .layer-label { color: #ec4899; }
-  .layer-intel .icon { background: #ec4899; }
+  .layer-engine { border: 2px solid #fdba74; }
+  .layer-engine .layer-header { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
+  .layer-engine .layer-header .icon { background: rgba(255,255,255,0.25); }
+  .layer-engine .layer-header .tech { background: rgba(255,255,255,0.2); color: white; }
+  .layer-engine .layer-body { background: #fff7ed; }
+  .layer-engine .comp { border-color: #fed7aa; }
+  .layer-engine .comp-badge { background: #ffedd5; color: #c2410c; }
 
-  .layer-provider { background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04)); border-color: rgba(34,197,94,0.2); }
-  .layer-provider .layer-label { color: #22c55e; }
-  .layer-provider .icon { background: #22c55e; }
+  .layer-intel { border: 2px solid #f9a8d4; }
+  .layer-intel .layer-header { background: linear-gradient(135deg, #ec4899, #db2777); color: white; }
+  .layer-intel .layer-header .icon { background: rgba(255,255,255,0.25); }
+  .layer-intel .layer-header .tech { background: rgba(255,255,255,0.2); color: white; }
+  .layer-intel .layer-body { background: #fdf2f8; }
+  .layer-intel .comp { border-color: #fbcfe8; }
+  .layer-intel .comp-badge { background: #fce7f3; color: #be185d; }
 
-  .layer-obs { background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.04)); border-color: rgba(239,68,68,0.2); }
-  .layer-obs .layer-label { color: #ef4444; }
-  .layer-obs .icon { background: #ef4444; }
+  .layer-provider { border: 2px solid #86efac; }
+  .layer-provider .layer-header { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+  .layer-provider .layer-header .icon { background: rgba(255,255,255,0.25); }
+  .layer-provider .layer-header .tech { background: rgba(255,255,255,0.2); color: white; }
+  .layer-provider .layer-body { background: #f0fdf4; }
+  .layer-provider .comp { border-color: #bbf7d0; }
+  .layer-provider .comp-badge { background: #dcfce7; color: #15803d; }
 
-  /* Arrows between layers */
-  .arrow-row { display: flex; justify-content: center; margin: -4px 0; }
-  .arrow-row svg { width: 30px; height: 20px; }
-  .arrow-row svg path { fill: #475569; }
+  .layer-obs { border: 2px solid #fca5a5; }
+  .layer-obs .layer-header { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+  .layer-obs .layer-header .icon { background: rgba(255,255,255,0.25); }
+  .layer-obs .layer-header .tech { background: rgba(255,255,255,0.2); color: white; }
+  .layer-obs .layer-body { background: #fef2f2; }
+  .layer-obs .comp { border-color: #fecaca; }
+  .layer-obs .comp-badge { background: #fee2e2; color: #b91c1c; }
+
+  /* Arrow rows */
+  .arrow-row { display: flex; justify-content: center; gap: 24px; margin: -4px 0; }
+  .arrow-row .arr { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 12px solid #94a3b8; }
 
   /* Pipeline bar */
   .pipeline { display: flex; align-items: center; gap: 0; margin-bottom: 16px; flex-wrap: wrap; justify-content: center; }
-  .pipeline-step { background: rgba(249,115,22,0.15); border: 1px solid rgba(249,115,22,0.3); padding: 6px 12px; font-size: 11px; font-weight: 600; color: #fb923c; }
+  .pipeline-step { background: white; border: 1.5px solid #fdba74; padding: 6px 11px; font-size: 11px; font-weight: 700; color: #c2410c; }
   .pipeline-step:first-child { border-radius: 8px 0 0 8px; }
   .pipeline-step:last-child { border-radius: 0 8px 8px 0; }
-  .pipeline-arrow { color: #f97316; font-size: 12px; padding: 0 2px; }
+  .pipeline-arrow { color: #f97316; font-size: 14px; font-weight: 700; padding: 0 1px; }
 
-  .comp-badge { display: inline-block; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 4px; font-size: 9px; margin-top: 4px; }
+  /* Label on left side */
+  .layer-side-label { position: absolute; left: 0; top: 0; bottom: 0; width: 36px; writing-mode: vertical-rl; text-orientation: mixed; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; transform: rotate(180deg); }
 </style>
 </head>
 <body>
 <div class="diagram">
 
-  <div class="title"><h1>LLM O11y Platform — Architecture</h1></div>
-  <div class="subtitle">Open-Source Unified AI Gateway, Observability & Intelligence Platform</div>
+  <div class="title"><h1>LLM O11y Platform &mdash; Architecture</h1></div>
+  <div class="subtitle">Open-Source Unified AI Gateway, Observability &amp; Intelligence Platform</div>
 
   <!-- USER LAYER -->
   <div class="layer layer-user">
     <div class="layer-header">
       <div class="icon">U</div>
       <h2>User Layer</h2>
-      <span class="tech">Jinja2 + Vanilla JS + CSS Grid</span>
+      <span class="tech">Jinja2 &bull; Vanilla JS &bull; CSS Grid</span>
     </div>
-    <div class="components">
-      <div class="comp"><div class="comp-icon">📊</div><div class="comp-name">Dashboard</div><div class="comp-detail">Real-time analytics<br/>SVG sparkline charts</div></div>
-      <div class="comp"><div class="comp-icon">🧪</div><div class="comp-name">AI Playground</div><div class="comp-detail">Multi-model testing<br/>Compare mode</div></div>
-      <div class="comp"><div class="comp-icon">📝</div><div class="comp-name">Prompt Studio</div><div class="comp-detail">Templates + versioning<br/>A/B variants</div></div>
-      <div class="comp"><div class="comp-icon">📋</div><div class="comp-name">Request Explorer</div><div class="comp-detail">Logs + trace details<br/>Filter &amp; search</div></div>
-      <div class="comp"><div class="comp-icon">🔑</div><div class="comp-name">API Keys</div><div class="comp-detail">Virtual keys<br/>Budget gauges</div></div>
-    </div>
-    <div style="height:10px"></div>
-    <div class="components">
-      <div class="comp"><div class="comp-icon">📈</div><div class="comp-name">Evaluation</div><div class="comp-detail">LLM-as-judge<br/>Batch scoring</div></div>
-      <div class="comp"><div class="comp-icon">🛡️</div><div class="comp-name">Guardrails</div><div class="comp-detail">PII detection test<br/>Content safety</div></div>
-      <div class="comp"><div class="comp-icon">🔀</div><div class="comp-name">Routing</div><div class="comp-detail">Strategy builder<br/>Circuit breaker view</div></div>
-      <div class="comp"><div class="comp-icon">☁️</div><div class="comp-name">Providers</div><div class="comp-detail">Health status<br/>Latency monitoring</div></div>
-      <div class="comp"><div class="comp-icon">⚙️</div><div class="comp-name">Settings</div><div class="comp-detail">API keys config<br/>MCP servers</div></div>
+    <div class="layer-body">
+      <div class="components">
+        <div class="comp"><div class="comp-icon">📊</div><div class="comp-name">Dashboard</div><div class="comp-detail">Real-time analytics<br/>SVG sparkline charts</div></div>
+        <div class="comp"><div class="comp-icon">🧪</div><div class="comp-name">AI Playground</div><div class="comp-detail">Multi-model testing<br/>Compare mode</div></div>
+        <div class="comp"><div class="comp-icon">📝</div><div class="comp-name">Prompt Studio</div><div class="comp-detail">Templates + versioning<br/>A/B variants</div></div>
+        <div class="comp"><div class="comp-icon">📋</div><div class="comp-name">Request Explorer</div><div class="comp-detail">Logs + trace details<br/>Filter &amp; search</div></div>
+        <div class="comp"><div class="comp-icon">🔑</div><div class="comp-name">API Keys</div><div class="comp-detail">Virtual keys<br/>Budget gauges</div></div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="components">
+        <div class="comp"><div class="comp-icon">📈</div><div class="comp-name">Evaluation</div><div class="comp-detail">LLM-as-judge<br/>Batch scoring</div></div>
+        <div class="comp"><div class="comp-icon">🛡️</div><div class="comp-name">Guardrails</div><div class="comp-detail">PII detection test<br/>Content safety</div></div>
+        <div class="comp"><div class="comp-icon">🔀</div><div class="comp-name">Routing</div><div class="comp-detail">Strategy builder<br/>Circuit breaker view</div></div>
+        <div class="comp"><div class="comp-icon">☁️</div><div class="comp-name">Providers</div><div class="comp-detail">Health status<br/>Latency monitoring</div></div>
+        <div class="comp"><div class="comp-icon">⚙️</div><div class="comp-name">Settings</div><div class="comp-detail">API keys config<br/>MCP servers</div></div>
+      </div>
     </div>
   </div>
 
-  <div class="arrow-row"><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg></div>
+  <div class="arrow-row"><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div></div>
 
   <!-- API LAYER -->
   <div class="layer layer-api">
     <div class="layer-header">
       <div class="icon">A</div>
       <h2>API Layer</h2>
-      <span class="tech">FastAPI + Uvicorn + Pydantic</span>
+      <span class="tech">FastAPI &bull; Uvicorn &bull; Pydantic</span>
     </div>
-    <div class="components">
-      <div class="comp"><div class="comp-icon">🔌</div><div class="comp-name">/v1/chat/completions</div><div class="comp-detail">OpenAI-compatible<br/>Gateway endpoint</div></div>
-      <div class="comp"><div class="comp-icon">🔑</div><div class="comp-name">/api/keys</div><div class="comp-detail">Virtual key<br/>CRUD + budgets</div></div>
-      <div class="comp"><div class="comp-icon">📝</div><div class="comp-name">/api/prompts</div><div class="comp-detail">Template CRUD<br/>Render + test</div></div>
-      <div class="comp"><div class="comp-icon">🛡️</div><div class="comp-name">/api/guardrails</div><div class="comp-detail">PII check/redact<br/>Safety config</div></div>
-      <div class="comp"><div class="comp-icon">📈</div><div class="comp-name">/api/eval</div><div class="comp-detail">Judge scoring<br/>Datasets</div></div>
-    </div>
-    <div style="height:10px"></div>
-    <div class="components">
-      <div class="comp"><div class="comp-icon">🔭</div><div class="comp-name">/v1/mcp/*</div><div class="comp-detail">Tool call ingestion<br/>Session tracking</div></div>
-      <div class="comp"><div class="comp-icon">🔀</div><div class="comp-name">/api/routing</div><div class="comp-detail">Strategy config<br/>Circuit breaker</div></div>
-      <div class="comp"><div class="comp-icon">💾</div><div class="comp-name">/api/cache</div><div class="comp-detail">Cache stats<br/>Clear cache</div></div>
-      <div class="comp"><div class="comp-icon">📋</div><div class="comp-name">/api/logs</div><div class="comp-detail">Request logs<br/>Filtered + paginated</div></div>
-      <div class="comp"><div class="comp-icon">💚</div><div class="comp-name">/health + /metrics</div><div class="comp-detail">Health probe<br/>Prometheus scrape</div></div>
+    <div class="layer-body">
+      <div class="components">
+        <div class="comp"><div class="comp-icon">🔌</div><div class="comp-name">/v1/chat/completions</div><div class="comp-detail">OpenAI-compatible<br/>Gateway endpoint</div></div>
+        <div class="comp"><div class="comp-icon">🔑</div><div class="comp-name">/api/keys</div><div class="comp-detail">Virtual key<br/>CRUD + budgets</div></div>
+        <div class="comp"><div class="comp-icon">📝</div><div class="comp-name">/api/prompts</div><div class="comp-detail">Template CRUD<br/>Render + test</div></div>
+        <div class="comp"><div class="comp-icon">🛡️</div><div class="comp-name">/api/guardrails</div><div class="comp-detail">PII check/redact<br/>Safety config</div></div>
+        <div class="comp"><div class="comp-icon">📈</div><div class="comp-name">/api/eval</div><div class="comp-detail">Judge scoring<br/>Datasets</div></div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="components">
+        <div class="comp"><div class="comp-icon">🔭</div><div class="comp-name">/v1/mcp/*</div><div class="comp-detail">Tool call ingestion<br/>Session tracking</div></div>
+        <div class="comp"><div class="comp-icon">🔀</div><div class="comp-name">/api/routing</div><div class="comp-detail">Strategy config<br/>Circuit breaker</div></div>
+        <div class="comp"><div class="comp-icon">💾</div><div class="comp-name">/api/cache</div><div class="comp-detail">Cache stats<br/>Clear cache</div></div>
+        <div class="comp"><div class="comp-icon">📋</div><div class="comp-name">/api/logs</div><div class="comp-detail">Request logs<br/>Filtered + paginated</div></div>
+        <div class="comp"><div class="comp-icon">💚</div><div class="comp-name">/health + /metrics</div><div class="comp-detail">Health probe<br/>Prometheus scrape</div></div>
+      </div>
     </div>
   </div>
 
-  <div class="arrow-row"><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg></div>
+  <div class="arrow-row"><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div></div>
 
   <!-- GATEWAY ENGINE LAYER -->
   <div class="layer layer-engine">
@@ -133,46 +164,50 @@
       <h2>Gateway Engine Layer</h2>
       <span class="tech">10-Step Middleware Pipeline</span>
     </div>
-    <div class="pipeline">
-      <div class="pipeline-step">Auth</div><span class="pipeline-arrow">&#9654;</span>
-      <div class="pipeline-step">Rate Limit</div><span class="pipeline-arrow">&#9654;</span>
-      <div class="pipeline-step">Guardrails</div><span class="pipeline-arrow">&#9654;</span>
-      <div class="pipeline-step">Cache</div><span class="pipeline-arrow">&#9654;</span>
-      <div class="pipeline-step">Circuit Breaker</div><span class="pipeline-arrow">&#9654;</span>
-      <div class="pipeline-step">Route</div><span class="pipeline-arrow">&#9654;</span>
-      <div class="pipeline-step">Retry</div><span class="pipeline-arrow">&#9654;</span>
-      <div class="pipeline-step">Execute</div><span class="pipeline-arrow">&#9654;</span>
-      <div class="pipeline-step">Cache Store</div><span class="pipeline-arrow">&#9654;</span>
-      <div class="pipeline-step">Log</div>
-    </div>
-    <div class="components">
-      <div class="comp"><div class="comp-icon">🔀</div><div class="comp-name">Routing Engine</div><div class="comp-detail">6 strategies<br/><span class="comp-badge">cost</span> <span class="comp-badge">latency</span> <span class="comp-badge">canary</span><br/><span class="comp-badge">fallback</span> <span class="comp-badge">loadbalance</span></div></div>
-      <div class="comp"><div class="comp-icon">💾</div><div class="comp-name">Cache Engine</div><div class="comp-detail">Simple (SHA-256)<br/>Semantic (trigram)<br/><span class="comp-badge">10K entries</span> <span class="comp-badge">1h TTL</span></div></div>
-      <div class="comp"><div class="comp-icon">⏱️</div><div class="comp-name">Rate Limiter</div><div class="comp-detail">Token bucket<br/>Sliding windows<br/><span class="comp-badge">RPM</span> <span class="comp-badge">RPH</span> <span class="comp-badge">TPM</span></div></div>
-      <div class="comp"><div class="comp-icon">⚡</div><div class="comp-name">Circuit Breaker</div><div class="comp-detail">3-state per provider<br/><span class="comp-badge">CLOSED</span> <span class="comp-badge">OPEN</span><br/><span class="comp-badge">HALF_OPEN</span></div></div>
-      <div class="comp"><div class="comp-icon">🔑</div><div class="comp-name">Virtual Keys</div><div class="comp-detail">sk-llmo-xxx format<br/>Budget tracking<br/><span class="comp-badge">permissions</span> <span class="comp-badge">teams</span></div></div>
+    <div class="layer-body">
+      <div class="pipeline">
+        <div class="pipeline-step">Auth</div><span class="pipeline-arrow">&#9654;</span>
+        <div class="pipeline-step">Rate Limit</div><span class="pipeline-arrow">&#9654;</span>
+        <div class="pipeline-step">Guardrails</div><span class="pipeline-arrow">&#9654;</span>
+        <div class="pipeline-step">Cache</div><span class="pipeline-arrow">&#9654;</span>
+        <div class="pipeline-step">Circuit Breaker</div><span class="pipeline-arrow">&#9654;</span>
+        <div class="pipeline-step">Route</div><span class="pipeline-arrow">&#9654;</span>
+        <div class="pipeline-step">Retry</div><span class="pipeline-arrow">&#9654;</span>
+        <div class="pipeline-step">Execute</div><span class="pipeline-arrow">&#9654;</span>
+        <div class="pipeline-step">Cache Store</div><span class="pipeline-arrow">&#9654;</span>
+        <div class="pipeline-step">Log</div>
+      </div>
+      <div class="components">
+        <div class="comp"><div class="comp-icon">🔀</div><div class="comp-name">Routing Engine</div><div class="comp-detail">6 strategies<br/><span class="comp-badge">cost</span> <span class="comp-badge">latency</span> <span class="comp-badge">canary</span><br/><span class="comp-badge">fallback</span> <span class="comp-badge">loadbalance</span></div></div>
+        <div class="comp"><div class="comp-icon">💾</div><div class="comp-name">Cache Engine</div><div class="comp-detail">Simple (SHA-256)<br/>Semantic (trigram)<br/><span class="comp-badge">10K entries</span> <span class="comp-badge">1h TTL</span></div></div>
+        <div class="comp"><div class="comp-icon">⏱️</div><div class="comp-name">Rate Limiter</div><div class="comp-detail">Token bucket<br/>Sliding windows<br/><span class="comp-badge">RPM</span> <span class="comp-badge">RPH</span> <span class="comp-badge">TPM</span></div></div>
+        <div class="comp"><div class="comp-icon">⚡</div><div class="comp-name">Circuit Breaker</div><div class="comp-detail">3-state per provider<br/><span class="comp-badge">CLOSED</span> <span class="comp-badge">OPEN</span><br/><span class="comp-badge">HALF_OPEN</span></div></div>
+        <div class="comp"><div class="comp-icon">🔑</div><div class="comp-name">Virtual Keys</div><div class="comp-detail">sk-llmo-xxx format<br/>Budget tracking<br/><span class="comp-badge">permissions</span> <span class="comp-badge">teams</span></div></div>
+      </div>
     </div>
   </div>
 
-  <div class="arrow-row"><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg></div>
+  <div class="arrow-row"><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div></div>
 
   <!-- INTELLIGENCE LAYER -->
   <div class="layer layer-intel">
     <div class="layer-header">
       <div class="icon">I</div>
       <h2>Intelligence Layer</h2>
-      <span class="tech">Prompts + Guardrails + Evaluation + MCP</span>
+      <span class="tech">Prompts &bull; Guardrails &bull; Evaluation &bull; MCP</span>
     </div>
-    <div class="components">
-      <div class="comp"><div class="comp-icon">📝</div><div class="comp-name">Prompt Store</div><div class="comp-detail">Version control<br/>{{variable}} interpolation<br/><span class="comp-badge">A/B testing</span></div></div>
-      <div class="comp"><div class="comp-icon">🛡️</div><div class="comp-name">Guardrails Engine</div><div class="comp-detail">18 PII patterns<br/>Content safety<br/><span class="comp-badge">redaction</span> <span class="comp-badge">validation</span></div></div>
-      <div class="comp"><div class="comp-icon">📈</div><div class="comp-name">Eval Judge</div><div class="comp-detail">LLM-as-judge scoring<br/>6 criteria + custom<br/><span class="comp-badge">batch eval</span></div></div>
-      <div class="comp"><div class="comp-icon">🔭</div><div class="comp-name">MCP Tracer</div><div class="comp-detail">Tool call tracking<br/>Session aggregation<br/><span class="comp-badge">@trace decorator</span></div></div>
-      <div class="comp"><div class="comp-icon">📡</div><div class="comp-name">OTel Emitter</div><div class="comp-detail">GenAI spans<br/>8 custom metrics<br/><span class="comp-badge">traces</span> <span class="comp-badge">logs</span></div></div>
+    <div class="layer-body">
+      <div class="components">
+        <div class="comp"><div class="comp-icon">📝</div><div class="comp-name">Prompt Store</div><div class="comp-detail">Version control<br/>{{variable}} interpolation<br/><span class="comp-badge">A/B testing</span></div></div>
+        <div class="comp"><div class="comp-icon">🛡️</div><div class="comp-name">Guardrails Engine</div><div class="comp-detail">18 PII patterns<br/>Content safety<br/><span class="comp-badge">redaction</span> <span class="comp-badge">validation</span></div></div>
+        <div class="comp"><div class="comp-icon">📈</div><div class="comp-name">Eval Judge</div><div class="comp-detail">LLM-as-judge scoring<br/>6 criteria + custom<br/><span class="comp-badge">batch eval</span></div></div>
+        <div class="comp"><div class="comp-icon">🔭</div><div class="comp-name">MCP Tracer</div><div class="comp-detail">Tool call tracking<br/>Session aggregation<br/><span class="comp-badge">@trace decorator</span></div></div>
+        <div class="comp"><div class="comp-icon">📡</div><div class="comp-name">OTel Emitter</div><div class="comp-detail">GenAI spans<br/>8 custom metrics<br/><span class="comp-badge">traces</span> <span class="comp-badge">logs</span></div></div>
+      </div>
     </div>
   </div>
 
-  <div class="arrow-row"><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg></div>
+  <div class="arrow-row"><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div></div>
 
   <!-- PROVIDER LAYER -->
   <div class="layer layer-provider">
@@ -181,16 +216,18 @@
       <h2>Provider Layer</h2>
       <span class="tech">6 Providers &bull; 16+ Models &bull; Async Adapters</span>
     </div>
-    <div class="components">
-      <div class="comp" style="border-color: rgba(16,185,129,0.3);"><div class="comp-icon">🟢</div><div class="comp-name">OpenAI</div><div class="comp-detail">gpt-4o, gpt-4o-mini<br/>o1, o1-mini<br/><span class="comp-badge">$0.15-$60/M</span></div></div>
-      <div class="comp" style="border-color: rgba(217,119,6,0.3);"><div class="comp-icon">🟠</div><div class="comp-name">Anthropic</div><div class="comp-detail">claude-opus-4-6<br/>sonnet-4-6, haiku-4-5<br/><span class="comp-badge">$0.80-$75/M</span></div></div>
-      <div class="comp" style="border-color: rgba(59,130,246,0.3);"><div class="comp-icon">🔵</div><div class="comp-name">Vertex AI</div><div class="comp-detail">gemini-1.5-pro<br/>1.5-flash, 2.0-flash<br/><span class="comp-badge">$0.075-$5/M</span></div></div>
-      <div class="comp" style="border-color: rgba(245,158,11,0.3);"><div class="comp-icon">🟡</div><div class="comp-name">AWS Bedrock</div><div class="comp-detail">Claude, Llama<br/>Titan, Converse API<br/><span class="comp-badge">AWS pricing</span></div></div>
-      <div class="comp" style="border-color: rgba(168,85,247,0.3);"><div class="comp-icon">🟣</div><div class="comp-name">Cohere</div><div class="comp-detail">command-r-plus<br/>command-r<br/><span class="comp-badge">$0.15-$10/M</span></div></div>
+    <div class="layer-body">
+      <div class="components">
+        <div class="comp"><div class="comp-icon">🟢</div><div class="comp-name">OpenAI</div><div class="comp-detail">gpt-4o, gpt-4o-mini<br/>o1, o1-mini<br/><span class="comp-badge">$0.15&ndash;$60/M</span></div></div>
+        <div class="comp"><div class="comp-icon">🟠</div><div class="comp-name">Anthropic</div><div class="comp-detail">claude-opus-4-6<br/>sonnet-4-6, haiku-4-5<br/><span class="comp-badge">$0.80&ndash;$75/M</span></div></div>
+        <div class="comp"><div class="comp-icon">🔵</div><div class="comp-name">Vertex AI</div><div class="comp-detail">gemini-1.5-pro<br/>1.5-flash, 2.0-flash<br/><span class="comp-badge">$0.075&ndash;$5/M</span></div></div>
+        <div class="comp"><div class="comp-icon">🟡</div><div class="comp-name">AWS Bedrock</div><div class="comp-detail">Claude, Llama<br/>Titan, Converse API<br/><span class="comp-badge">AWS pricing</span></div></div>
+        <div class="comp"><div class="comp-icon">🟣</div><div class="comp-name">Cohere</div><div class="comp-detail">command-r-plus<br/>command-r<br/><span class="comp-badge">$0.15&ndash;$10/M</span></div></div>
+      </div>
     </div>
   </div>
 
-  <div class="arrow-row"><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg><svg viewBox="0 0 30 20"><path d="M15 0 L15 14 M9 10 L15 18 L21 10"/></svg></div>
+  <div class="arrow-row"><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div><div class="arr"></div></div>
 
   <!-- OBSERVABILITY LAYER -->
   <div class="layer layer-obs">
@@ -199,12 +236,14 @@
       <h2>Observability Layer</h2>
       <span class="tech">Grafana LGTM Stack &bull; OpenTelemetry &bull; 19 Dashboards</span>
     </div>
-    <div class="components">
-      <div class="comp"><div class="comp-icon">📡</div><div class="comp-name">OTel Collector</div><div class="comp-detail">OTLP gRPC/HTTP<br/>batch + memory_limiter<br/><span class="comp-badge">v0.96.0</span></div></div>
-      <div class="comp"><div class="comp-icon">🔍</div><div class="comp-name">Grafana Tempo</div><div class="comp-detail">Distributed traces<br/>GenAI spans<br/><span class="comp-badge">v2.4.1</span></div></div>
-      <div class="comp"><div class="comp-icon">📊</div><div class="comp-name">Prometheus</div><div class="comp-detail">9 metric families<br/>Remote write<br/><span class="comp-badge">v2.51.0</span></div></div>
-      <div class="comp"><div class="comp-icon">📜</div><div class="comp-name">Grafana Loki</div><div class="comp-detail">Structured JSON logs<br/>Trace correlation<br/><span class="comp-badge">v2.9.6</span></div></div>
-      <div class="comp"><div class="comp-icon">📈</div><div class="comp-name">Grafana</div><div class="comp-detail">19 dashboards<br/>Auto-provisioned<br/><span class="comp-badge">v10.4.1</span></div></div>
+    <div class="layer-body">
+      <div class="components">
+        <div class="comp"><div class="comp-icon">📡</div><div class="comp-name">OTel Collector</div><div class="comp-detail">OTLP gRPC/HTTP<br/>batch + memory_limiter<br/><span class="comp-badge">v0.96.0</span></div></div>
+        <div class="comp"><div class="comp-icon">🔍</div><div class="comp-name">Grafana Tempo</div><div class="comp-detail">Distributed traces<br/>GenAI spans<br/><span class="comp-badge">v2.4.1</span></div></div>
+        <div class="comp"><div class="comp-icon">📊</div><div class="comp-name">Prometheus</div><div class="comp-detail">9 metric families<br/>Remote write<br/><span class="comp-badge">v2.51.0</span></div></div>
+        <div class="comp"><div class="comp-icon">📜</div><div class="comp-name">Grafana Loki</div><div class="comp-detail">Structured JSON logs<br/>Trace correlation<br/><span class="comp-badge">v2.9.6</span></div></div>
+        <div class="comp"><div class="comp-icon">📈</div><div class="comp-name">Grafana</div><div class="comp-detail">19 dashboards<br/>Auto-provisioned<br/><span class="comp-badge">v10.4.1</span></div></div>
+      </div>
     </div>
   </div>
 
