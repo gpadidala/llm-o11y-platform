@@ -196,195 +196,73 @@ Modern AI applications face a fragmented landscape:
 
 ### Platform Layer Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                                                             │
-│  🟣  USER LAYER                                                            │
-│                                                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │ Dashboard│  │Playground│  │  Prompt  │  │ Request  │  │  API     │     │
-│  │  Home    │  │ Compare  │  │  Studio  │  │ Explorer │  │  Keys    │     │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘     │
-│       │              │              │              │              │          │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │  Eval    │  │Guardrails│  │ Routing  │  │ Provider │  │ Settings │     │
-│  │Dashboard │  │  Config  │  │ Builder  │  │  Status  │  │   Page   │     │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  🔵  API LAYER                                FastAPI + Uvicorn             │
-│                                                                             │
-│  /v1/chat/completions    /api/keys    /api/prompts    /api/eval             │
-│  /v1/mcp/*               /api/logs    /api/guardrails /api/routing          │
-│  /v1/models              /api/cache   /api/settings   /api/status           │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  🟠  GATEWAY ENGINE LAYER                                                   │
-│                                                                             │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │                     Gateway Middleware Pipeline                      │   │
-│  │  Auth → RateLimit → Cache → CircuitBreaker → Route → Retry → Exec  │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │ Routing  │  │  Cache   │  │   Rate   │  │ Circuit  │  │ Virtual  │     │
-│  │ Engine   │  │ Engine   │  │ Limiter  │  │ Breaker  │  │  Keys    │     │
-│  │ 6 strats │  │Simple+Sem│  │Token Buck│  │ 3-state  │  │ Budgets  │     │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  🩷  INTELLIGENCE LAYER                                                     │
-│                                                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │ Prompt   │  │Guardrails│  │   Eval   │  │   MCP    │  │   OTel   │     │
-│  │  Store   │  │  Engine  │  │  Judge   │  │  Tracer  │  │ Emitter  │     │
-│  │Version+AB│  │PII+Safety│  │6 Criteria│  │ Sessions │  │Spans+Metr│     │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  🟢  PROVIDER LAYER                                                         │
-│                                                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │  OpenAI  │  │Anthropic │  │Vertex AI │  │ Bedrock  │  │  Cohere  │     │
-│  │ GPT-4o   │  │  Claude  │  │  Gemini  │  │  Claude  │  │Command R │     │
-│  │ o1       │  │  Opus    │  │  Flash   │  │  Llama   │  │Command R+│     │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  🔴  OBSERVABILITY LAYER                      Grafana LGTM Stack            │
-│                                                                             │
-│  ┌────────────────────┐  ┌──────────────┐  ┌───────────┐  ┌────────────┐   │
-│  │  OTel Collector    │  │   Grafana    │  │  Grafana  │  │    19      │   │
-│  │  OTLP → batch →   │──│    Tempo     │  │   Loki    │  │ Dashboards │   │
-│  │  export            │  │   (Traces)   │  │  (Logs)   │  │   in       │   │
-│  │                    │──│  Prometheus  │──│           │──│  Grafana   │   │
-│  └────────────────────┘  └──────────────┘  └───────────┘  └────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+> 6-layer architecture: User, API, Gateway Engine, Intelligence, Provider, and Observability — each with dedicated components and technologies.
+
+<img src="docs/screenshots/architecture-platform-layers.png" alt="Platform Architecture — 6 Layers" width="800"/>
+
+<details>
+<summary><strong>Layer Details</strong></summary>
+
+| Layer | Components | Technologies |
+|-------|-----------|-------------|
+| 🟣 **User** | Dashboard, Playground, Prompt Studio, Request Explorer, API Keys, Evaluation, Guardrails, Routing, Providers, Settings | Jinja2, Vanilla JS, CSS Grid |
+| 🔵 **API** | /v1/chat/completions, /api/keys, /api/prompts, /api/guardrails, /api/eval, /v1/mcp/*, /api/routing, /api/cache, /api/logs, /health | FastAPI, Uvicorn, Pydantic |
+| 🟠 **Gateway Engine** | Routing Engine (6 strategies), Cache Engine (simple + semantic), Rate Limiter (token bucket), Circuit Breaker (3-state), Virtual Keys (budgets + permissions) | 10-step middleware pipeline |
+| 🩷 **Intelligence** | Prompt Store (versioning + A/B), Guardrails Engine (18 PII patterns), Eval Judge (6 criteria), MCP Tracer (sessions), OTel Emitter (spans + metrics) | LLM-as-judge, regex patterns |
+| 🟢 **Provider** | OpenAI, Anthropic, Vertex AI, AWS Bedrock, Cohere, Azure OpenAI | openai, anthropic, vertexai, boto3, cohere SDKs |
+| 🔴 **Observability** | OTel Collector, Grafana Tempo, Prometheus, Grafana Loki, Grafana (19 dashboards) | LGTM Stack, OpenTelemetry |
+
+</details>
+
+---
 
 ### End-to-End Request Flow
 
-```
-┌──────────┐     ┌────────────────────────────────────────────────────┐
-│  Client  │────▶│  POST /v1/chat/completions                        │
-│  (App)   │     │  Authorization: Bearer sk-llmo-xxxxx              │
-└──────────┘     └──────────────┬─────────────────────────────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  1. VIRTUAL KEY AUTH        │  Validate key, check budget,
-                 │     VirtualKeyManager       │  check permissions
-                 └──────────────┬──────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  2. RATE LIMITER            │  Token bucket + sliding window
-                 │     RPM/RPH/RPD/TPM/TPD     │  (per-key or global)
-                 └──────────────┬──────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  3. GUARDRAILS (Input)      │  PII detection, content safety,
-                 │     18 PII patterns          │  topic restriction
-                 └──────────────┬──────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  4. CACHE CHECK             │  SHA-256 exact match or
-                 │     Simple / Semantic        │  trigram cosine similarity
-                 │                              │  → HIT: return cached response
-                 └──────────────┬──────────────┘
-                                │ (MISS)
-                 ┌──────────────▼──────────────┐
-                 │  5. CIRCUIT BREAKER         │  Check provider health
-                 │     CLOSED/OPEN/HALF_OPEN    │  → OPEN: try fallback target
-                 └──────────────┬──────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  6. ROUTING ENGINE          │  Select target via strategy:
-                 │     Cost / Latency / Canary  │  cost, latency, fallback, etc.
-                 └──────────────┬──────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  7. RETRY WITH BACKOFF      │  Exponential backoff + jitter
-                 │     Max 3 retries            │  on transient errors (429, 5xx)
-                 └──────────────┬──────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  8. PROVIDER ADAPTER        │  Translate to native API:
-                 │     OpenAI / Anthropic /     │  openai.chat.completions
-                 │     Vertex / Bedrock / Cohere│  anthropic.messages
-                 └──────────────┬──────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  9. CACHE STORE             │  Store response for future
-                 │     TTL: 1 hour default      │  requests (if caching enabled)
-                 └──────────────┬──────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  10. OTEL EMIT              │  Trace span (GenAI semantic)
-                 │      Traces → Tempo          │  + 8 custom metrics
-                 │      Metrics → Prometheus    │  + structured JSON log
-                 │      Logs → Loki             │
-                 └──────────────┬──────────────┘
-                                │
-                 ┌──────────────▼──────────────┐
-                 │  Response to Client         │
-                 │  Headers:                    │
-                 │    X-Request-ID              │
-                 │    X-Cache-Status: HIT/MISS  │
-                 │    X-Provider: openai         │
-                 │    X-Latency-Ms: 432          │
-                 └─────────────────────────────┘
-```
+> Every LLM request traverses a 10-step gateway middleware pipeline — from auth to response with full telemetry emission.
+
+<img src="docs/screenshots/architecture-request-flow.png" alt="Request Flow — 10 Step Pipeline" width="800"/>
+
+<details>
+<summary><strong>Pipeline Steps</strong></summary>
+
+| Step | Component | What Happens |
+|------|-----------|-------------|
+| 1 | **Virtual Key Auth** | Validate `sk-llmo-xxx` key, check budget, verify provider/model permissions |
+| 2 | **Rate Limiter** | Token bucket + sliding window enforcement (RPM, RPH, RPD, TPM, TPD) |
+| 3 | **Guardrails (Input)** | PII detection (18 patterns), content safety, topic restriction |
+| 4 | **Cache Check** | SHA-256 exact match or trigram cosine similarity (0.85 threshold) |
+| 5 | **Circuit Breaker** | Check provider health — OPEN state triggers fallback target selection |
+| 6 | **Routing Engine** | Select target via strategy: cost, latency, fallback, canary, loadbalance |
+| 7 | **Retry with Backoff** | Exponential backoff + jitter on 429/5xx errors (max 3 retries) |
+| 8 | **Provider Adapter** | Translate to native API: openai, anthropic, vertexai, boto3, cohere |
+| 9 | **Cache Store** | Store response for future requests (TTL: 1 hour default) |
+| 10 | **OTel Emit + Log** | Trace span (GenAI semantic) + 8 metrics + structured JSON log |
+
+</details>
+
+---
 
 ### Observability Data Flow
 
 ```
-┌──────────────────────┐
-│   LLM O11y Gateway   │
-│                       │
-│  OTel SDK             │
-│  ├── Traces (spans)   │──── OTLP gRPC ────┐
-│  ├── Metrics (8)      │──── OTLP gRPC ────┤
-│  └── Logs (JSON)      │──── OTLP gRPC ────┤
-└───────────────────────┘                    │
-                                              │
-                               ┌──────────────▼──────────────┐
-                               │   OpenTelemetry Collector    │
-                               │                              │
-                               │   Receivers: OTLP gRPC/HTTP  │
-                               │   Processors:                 │
-                               │     • memory_limiter (512MB)  │
-                               │     • batch (5s / 512 items)  │
-                               │     • resource (namespace)    │
-                               │                              │
-                               │   Pipelines:                  │
-                               │     traces  → Tempo           │
-                               │     metrics → Prometheus      │
-                               │     logs    → Loki            │
-                               └──┬──────────┬──────────┬─────┘
-                                  │          │          │
-                    ┌─────────────▼┐  ┌──────▼──────┐  ┌▼───────────┐
-                    │ Grafana Tempo│  │ Prometheus  │  │Grafana Loki│
-                    │              │  │             │  │            │
-                    │ Distributed  │  │ 9 LLM/MCP  │  │ Structured │
-                    │ traces with  │  │ metric      │  │ JSON logs  │
-                    │ GenAI attrs  │  │ families    │  │ with trace │
-                    │              │  │             │  │ correlation│
-                    └──────┬───────┘  └──────┬──────┘  └─────┬──────┘
-                           │                 │               │
-                           └─────────────────┼───────────────┘
-                                             │
-                                    ┌────────▼────────┐
-                                    │     Grafana     │
-                                    │                 │
-                                    │  19 Dashboards  │
-                                    │  Cross-linked   │
-                                    │  Auto-provisioned│
-                                    └─────────────────┘
+  LLM O11y Gateway                   OpenTelemetry Collector
+ ┌──────────────────┐               ┌─────────────────────────┐
+ │  OTel SDK        │               │  Receivers: OTLP        │
+ │  ├─ Traces       │──OTLP gRPC──▶│  Processors:            │
+ │  ├─ Metrics (8)  │               │    memory_limiter       │
+ │  └─ Logs (JSON)  │               │    batch (5s/512)       │
+ └──────────────────┘               │    resource enrichment  │
+                                     └───┬──────┬──────┬──────┘
+                                         │      │      │
+                              ┌──────────▼┐  ┌──▼───┐  ┌▼─────────┐
+                              │  Tempo    │  │Prom  │  │  Loki    │
+                              │  Traces   │  │Metrix│  │  Logs    │
+                              └─────┬─────┘  └──┬───┘  └────┬─────┘
+                                    └───────────┼────────────┘
+                                           ┌────▼────┐
+                                           │ Grafana │
+                                           │ 19 dash │
+                                           └─────────┘
 ```
 
 ---

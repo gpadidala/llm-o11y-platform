@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM O11y — Request Flow</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #0a0e17; color: #e2e8f0; padding: 40px; }
+  .diagram { max-width: 1100px; margin: 0 auto; }
+  .title h1 { text-align: center; font-size: 28px; font-weight: 800; background: linear-gradient(135deg, #f97316, #f43f5e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #94a3b8; font-size: 13px; margin-bottom: 30px; }
+
+  .flow { display: flex; gap: 20px; }
+  .flow-left { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .flow-right { width: 320px; display: flex; flex-direction: column; gap: 12px; }
+
+  .step { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); position: relative; }
+  .step-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-name { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .step-detail { font-size: 11px; color: #94a3b8; }
+  .step-module { font-size: 10px; color: #64748b; font-family: monospace; margin-top: 3px; }
+
+  .step-auth { border-color: rgba(168,85,247,0.3); } .step-auth .step-num { background: #a855f7; }
+  .step-rate { border-color: rgba(245,158,11,0.3); } .step-rate .step-num { background: #f59e0b; }
+  .step-guard { border-color: rgba(244,63,94,0.3); } .step-guard .step-num { background: #f43f5e; }
+  .step-cache { border-color: rgba(6,182,212,0.3); } .step-cache .step-num { background: #06b6d4; }
+  .step-circuit { border-color: rgba(239,68,68,0.3); } .step-circuit .step-num { background: #ef4444; }
+  .step-route { border-color: rgba(59,130,246,0.3); } .step-route .step-num { background: #3b82f6; }
+  .step-retry { border-color: rgba(249,115,22,0.3); } .step-retry .step-num { background: #f97316; }
+  .step-exec { border-color: rgba(34,197,94,0.3); } .step-exec .step-num { background: #22c55e; }
+  .step-store { border-color: rgba(6,182,212,0.3); } .step-store .step-num { background: #06b6d4; }
+  .step-otel { border-color: rgba(139,92,246,0.3); } .step-otel .step-num { background: #8b5cf6; }
+
+  .arrow-down { text-align: center; color: #475569; font-size: 18px; line-height: 1; margin: -2px 0; }
+
+  .side-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; }
+  .side-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .side-card .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin: 2px; }
+
+  .client-box { text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(59,130,246,0.15)); border: 1px solid rgba(168,85,247,0.3); border-radius: 12px; margin-bottom: 12px; }
+  .client-box .label { font-size: 12px; color: #94a3b8; }
+  .client-box .api { font-family: monospace; font-size: 13px; color: #a855f7; font-weight: 600; margin-top: 4px; }
+
+  .response-box { text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(6,182,212,0.15)); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; margin-top: 12px; }
+  .response-box .label { font-size: 12px; color: #94a3b8; }
+  .header-tag { display: inline-block; background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.2); padding: 1px 6px; border-radius: 4px; font-size: 9px; font-family: monospace; color: #22c55e; margin: 2px; }
+</style>
+</head>
+<body>
+<div class="diagram">
+  <div class="title"><h1>End-to-End Request Flow</h1></div>
+  <div class="subtitle">10-Step Gateway Middleware Pipeline &mdash; Every LLM request traverses this path</div>
+
+  <div class="client-box">
+    <div class="label">Client Application / Agent / MCP Client</div>
+    <div class="api">POST /v1/chat/completions</div>
+    <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Authorization: Bearer sk-llmo-xxxxx</div>
+  </div>
+
+  <div class="arrow-down">&#9660;</div>
+
+  <div class="flow">
+    <div class="flow-left">
+      <div class="step step-auth">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-name">Virtual Key Auth</div>
+          <div class="step-detail">Validate sk-llmo-xxx key, check budget, verify permissions</div>
+          <div class="step-module">src/gateway/virtual_keys.py</div>
+        </div>
+      </div>
+      <div class="arrow-down">&#9660;</div>
+      <div class="step step-rate">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-name">Rate Limiter</div>
+          <div class="step-detail">Token bucket + sliding window (RPM, RPH, RPD, TPM, TPD)</div>
+          <div class="step-module">src/gateway/rate_limiter.py</div>
+        </div>
+      </div>
+      <div class="arrow-down">&#9660;</div>
+      <div class="step step-guard">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-name">Guardrails (Input)</div>
+          <div class="step-detail">PII detection (18 patterns), content safety, topic restriction</div>
+          <div class="step-module">src/guardrails/engine.py</div>
+        </div>
+      </div>
+      <div class="arrow-down">&#9660;</div>
+      <div class="step step-cache">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-name">Cache Check</div>
+          <div class="step-detail">SHA-256 exact match or trigram cosine similarity (0.85 threshold)</div>
+          <div class="step-module">src/gateway/cache.py &rarr; HIT: return cached response</div>
+        </div>
+      </div>
+      <div class="arrow-down">&#9660; <span style="font-size:10px; color:#06b6d4;">MISS</span></div>
+      <div class="step step-circuit">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-name">Circuit Breaker</div>
+          <div class="step-detail">Check provider health &mdash; OPEN: try fallback target</div>
+          <div class="step-module">src/gateway/circuit_breaker.py (CLOSED/OPEN/HALF_OPEN)</div>
+        </div>
+      </div>
+      <div class="arrow-down">&#9660;</div>
+      <div class="step step-route">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <div class="step-name">Routing Engine</div>
+          <div class="step-detail">Select target via strategy: cost, latency, fallback, canary, loadbalance</div>
+          <div class="step-module">src/gateway/routing.py</div>
+        </div>
+      </div>
+      <div class="arrow-down">&#9660;</div>
+      <div class="step step-retry">
+        <div class="step-num">7</div>
+        <div class="step-content">
+          <div class="step-name">Retry with Backoff</div>
+          <div class="step-detail">Exponential backoff + jitter on 429, 500-504 errors (max 3 retries)</div>
+          <div class="step-module">src/gateway/retry.py</div>
+        </div>
+      </div>
+      <div class="arrow-down">&#9660;</div>
+      <div class="step step-exec">
+        <div class="step-num">8</div>
+        <div class="step-content">
+          <div class="step-name">Provider Adapter</div>
+          <div class="step-detail">Translate to native API: openai, anthropic, vertexai, boto3, cohere</div>
+          <div class="step-module">src/providers/{openai,anthropic,vertex,bedrock,cohere}_provider.py</div>
+        </div>
+      </div>
+      <div class="arrow-down">&#9660;</div>
+      <div class="step step-store">
+        <div class="step-num">9</div>
+        <div class="step-content">
+          <div class="step-name">Cache Store</div>
+          <div class="step-detail">Store response for future requests (TTL: 1 hour default)</div>
+          <div class="step-module">src/gateway/cache.py</div>
+        </div>
+      </div>
+      <div class="arrow-down">&#9660;</div>
+      <div class="step step-otel">
+        <div class="step-num">10</div>
+        <div class="step-content">
+          <div class="step-name">OTel Emit + Log</div>
+          <div class="step-detail">Trace span (GenAI) + 8 metrics + structured JSON log</div>
+          <div class="step-module">src/otel/{setup,llm_spans}.py &rarr; Tempo + Prometheus + Loki</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-right">
+      <div class="side-card" style="border-color: rgba(168,85,247,0.2);">
+        <h3><span style="color:#a855f7;">&#9679;</span> Routing Strategies</h3>
+        <div class="badge" style="background:rgba(168,85,247,0.15);color:#c084fc;">single</div>
+        <div class="badge" style="background:rgba(59,130,246,0.15);color:#93c5fd;">fallback</div>
+        <div class="badge" style="background:rgba(34,197,94,0.15);color:#86efac;">loadbalance</div>
+        <div class="badge" style="background:rgba(249,115,22,0.15);color:#fdba74;">cost optimized</div>
+        <div class="badge" style="background:rgba(6,182,212,0.15);color:#67e8f9;">latency optimized</div>
+        <div class="badge" style="background:rgba(236,72,153,0.15);color:#f9a8d4;">canary (A/B)</div>
+      </div>
+
+      <div class="side-card" style="border-color: rgba(244,63,94,0.2);">
+        <h3><span style="color:#f43f5e;">&#9679;</span> PII Patterns (18)</h3>
+        <div class="badge" style="background:rgba(244,63,94,0.12);color:#fda4af;">email</div>
+        <div class="badge" style="background:rgba(244,63,94,0.12);color:#fda4af;">phone</div>
+        <div class="badge" style="background:rgba(244,63,94,0.12);color:#fda4af;">SSN</div>
+        <div class="badge" style="background:rgba(244,63,94,0.12);color:#fda4af;">credit card</div>
+        <div class="badge" style="background:rgba(244,63,94,0.12);color:#fda4af;">IPv4/IPv6</div>
+        <div class="badge" style="background:rgba(244,63,94,0.12);color:#fda4af;">API keys</div>
+        <div class="badge" style="background:rgba(244,63,94,0.12);color:#fda4af;">DOB</div>
+        <div class="badge" style="background:rgba(244,63,94,0.12);color:#fda4af;">addresses</div>
+      </div>
+
+      <div class="side-card" style="border-color: rgba(34,197,94,0.2);">
+        <h3><span style="color:#22c55e;">&#9679;</span> Providers (6)</h3>
+        <div class="badge" style="background:rgba(16,185,129,0.15);color:#6ee7b7;">OpenAI</div>
+        <div class="badge" style="background:rgba(217,119,6,0.15);color:#fbbf24;">Anthropic</div>
+        <div class="badge" style="background:rgba(59,130,246,0.15);color:#93c5fd;">Vertex AI</div>
+        <div class="badge" style="background:rgba(245,158,11,0.15);color:#fcd34d;">Bedrock</div>
+        <div class="badge" style="background:rgba(168,85,247,0.15);color:#c084fc;">Cohere</div>
+        <div class="badge" style="background:rgba(96,165,250,0.15);color:#93c5fd;">Azure OpenAI</div>
+      </div>
+
+      <div class="side-card" style="border-color: rgba(139,92,246,0.2);">
+        <h3><span style="color:#8b5cf6;">&#9679;</span> Telemetry Signals</h3>
+        <div class="badge" style="background:rgba(139,92,246,0.15);color:#c4b5fd;">Traces &rarr; Tempo</div>
+        <div class="badge" style="background:rgba(239,68,68,0.15);color:#fca5a5;">Metrics &rarr; Prometheus</div>
+        <div class="badge" style="background:rgba(245,158,11,0.15);color:#fcd34d;">Logs &rarr; Loki</div>
+        <div style="font-size:10px; color:#94a3b8; margin-top:6px;">19 Grafana dashboards<br/>auto-provisioned</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down" style="margin-top:8px;">&#9660;</div>
+
+  <div class="response-box">
+    <div class="label">Response to Client</div>
+    <div style="margin-top:6px;">
+      <span class="header-tag">X-Request-ID: uuid</span>
+      <span class="header-tag">X-Cache-Status: HIT/MISS</span>
+      <span class="header-tag">X-Provider: openai</span>
+      <span class="header-tag">X-Latency-Ms: 432</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>
