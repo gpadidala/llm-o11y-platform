@@ -192,27 +192,6 @@ Modern AI applications face a fragmented landscape:
 
 ---
 
-### Grafana — KPI Scorecard
-> 25-panel KPI dashboard with availability, performance, cost efficiency, and cross-provider comparison.
-
-<img src="docs/screenshots/12-grafana-kpi.png" alt="Grafana KPI Dashboard" width="800"/>
-
----
-
-### Grafana — Cost Intelligence
-> Cost forecasting, budget tracking, anomaly detection with 2-sigma bands, and daily heatmaps.
-
-<img src="docs/screenshots/13-grafana-cost-intel.png" alt="Grafana Cost Intelligence" width="800"/>
-
----
-
-### Grafana — Reliability Engineering
-> SLI/SLO tracking, error budget burn rate, anomaly Z-scores, circuit breaker state timeline.
-
-<img src="docs/screenshots/14-grafana-reliability.png" alt="Grafana Reliability" width="800"/>
-
----
-
 ## 🏛️ Architecture
 
 ### Platform Layer Diagram
