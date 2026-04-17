@@ -22,6 +22,16 @@ from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_NAMESPAC
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+# Log export via OTLP
+try:
+    from opentelemetry._logs import set_logger_provider
+    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+    _LOGS_AVAILABLE = True
+except ImportError:
+    _LOGS_AVAILABLE = False
+
 from src.config import settings
 
 logger = logging.getLogger(__name__)
@@ -126,6 +136,27 @@ def init_telemetry(app=None):
     metrics.set_meter_provider(meter_provider)
 
     meter = metrics.get_meter("llm-o11y-gateway", meter_provider=meter_provider)
+
+    # ---- Logs (OTLP export) ------------------------------------------
+    if _LOGS_AVAILABLE:
+        try:
+            log_exporter = OTLPLogExporter(endpoint=endpoint, insecure=True)
+            logger_provider = LoggerProvider(resource=resource)
+            logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
+            set_logger_provider(logger_provider)
+
+            # Attach OTel handler to Python root logger so all structlog/logging
+            # output is also forwarded to the collector → Loki
+            otel_handler = LoggingHandler(
+                level=logging.INFO,
+                logger_provider=logger_provider,
+            )
+            logging.getLogger().addHandler(otel_handler)
+            logger.info("OTLP log exporter initialized — logs will be sent to collector")
+        except Exception:
+            logger.warning("Failed to initialize OTLP log exporter", exc_info=True)
+    else:
+        logger.info("OTLP log export not available (opentelemetry-sdk-logs not installed)")
 
     # ---- LLM metrics ------------------------------------------------
     # Names use dots (OTel convention); the Prometheus remote-write

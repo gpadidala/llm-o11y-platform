@@ -1,31 +1,69 @@
 apiVersion: 1
 datasources:
+  # ── Prometheus (Metrics) ──────────────────────────────────────────
   - name: Prometheus
     type: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true
     editable: true
+    jsonData:
+      # Exemplars: click a data point in a graph → jump to the trace in Tempo
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+
+  # ── Tempo (Traces) ────────────────────────────────────────────────
   - name: Tempo
     type: tempo
     access: proxy
     url: http://tempo:3200
     editable: true
     jsonData:
+      # Trace → Logs: click a trace span → see correlated logs in Loki
+      tracesToLogs:
+        datasourceUid: loki
+        spanStartTimeShift: "-1m"
+        spanEndTimeShift: "1m"
+        filterByTraceID: true
+        filterBySpanID: false
+        tags:
+          - key: "service.name"
+            value: "service_name"
+      # Trace → Metrics: link spans to RED metrics in Prometheus
       tracesToMetrics:
         datasourceUid: prometheus
+        spanStartTimeShift: "-1m"
+        spanEndTimeShift: "1m"
+        tags:
+          - key: "service.name"
+            value: "service_name"
+      # Node graph (service map)
       nodeGraph:
         enabled: true
+      # Service map using Tempo-generated metrics
       serviceMap:
         datasourceUid: prometheus
+      # Loki search for logs correlated with traces
+      lokiSearch:
+        datasourceUid: loki
+
+  # ── Loki (Logs) ───────────────────────────────────────────────────
   - name: Loki
     type: loki
     access: proxy
     url: http://loki:3100
     editable: true
     jsonData:
+      # Logs → Traces: click trace_id in a log line → jump to trace in Tempo
       derivedFields:
         - datasourceUid: tempo
-          matcherRegex: "trace_id=(\\w+)"
+          matcherRegex: '"trace_id":\s*"([a-f0-9]+)"'
           name: TraceID
           url: "$${__value.raw}"
+          urlDisplayLabel: "View Trace"
+        - datasourceUid: tempo
+          matcherRegex: 'trace_id=([a-f0-9]+)'
+          name: TraceID (kv)
+          url: "$${__value.raw}"
+          urlDisplayLabel: "View Trace"

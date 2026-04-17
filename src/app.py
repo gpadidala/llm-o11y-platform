@@ -53,6 +53,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+from opentelemetry import trace
+
 from src.config import settings
 from src.gateway.router import router as gateway_router
 from src.mcp_tracer.router import router as mcp_router
@@ -271,12 +273,29 @@ request_log_store = RequestLogStore()
 # ---------------------------------------------------------------------------
 
 
+def _inject_trace_context(logger, method_name, event_dict):
+    """Structlog processor: inject trace_id and span_id from the active OTel span.
+
+    This enables deep linking between logs (Loki) and traces (Tempo) in Grafana.
+    Loki's derivedFields regex matches ``trace_id=<hex>`` to create clickable links.
+    """
+    span = trace.get_current_span()
+    if span and span.is_recording():
+        ctx = span.get_span_context()
+        if ctx and ctx.trace_id:
+            event_dict["trace_id"] = format(ctx.trace_id, "032x")
+            event_dict["span_id"] = format(ctx.span_id, "016x")
+            event_dict["trace_flags"] = format(ctx.trace_flags, "02x")
+    return event_dict
+
+
 def _configure_logging() -> None:
-    """Set up structlog for JSON-formatted, context-rich log output."""
+    """Set up structlog for JSON-formatted, context-rich log output with trace correlation."""
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
+            _inject_trace_context,  # <-- injects trace_id/span_id into every log
             structlog.processors.add_log_level,
             structlog.processors.StackInfoRenderer(),
             structlog.dev.set_exc_info,
