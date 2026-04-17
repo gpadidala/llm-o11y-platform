@@ -21,6 +21,8 @@ import httpx
 import structlog
 from pydantic import BaseModel
 
+import src.otel.setup as otel_setup
+
 logger = structlog.get_logger(__name__)
 
 
@@ -195,13 +197,24 @@ class EvalJudge:
             )
             latency_ms = (time.perf_counter() - start) * 1000
 
+            criterion_name = criterion.value if isinstance(criterion, EvalCriterion) else criterion
+
             scores.append(EvalScore(
-                criterion=criterion.value if isinstance(criterion, EvalCriterion) else criterion,
+                criterion=criterion_name,
                 score=score_val,
                 reasoning=reasoning,
                 model_used=request.judge_model,
                 latency_ms=round(latency_ms, 2),
             ))
+
+            # Emit evaluation metrics
+            metric_attrs = {"criterion": criterion_name, "judge_model": request.judge_model}
+            if otel_setup.eval_runs is not None:
+                otel_setup.eval_runs.add(1, metric_attrs)
+            if otel_setup.eval_scores is not None:
+                otel_setup.eval_scores.record(score_val, {"criterion": criterion_name})
+            if otel_setup.eval_latency is not None:
+                otel_setup.eval_latency.record(round(latency_ms, 2), {"criterion": criterion_name})
 
         # Overall score is the mean of all criterion scores
         overall = sum(s.score for s in scores) / len(scores) if scores else 0.0

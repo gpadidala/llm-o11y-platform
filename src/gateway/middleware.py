@@ -34,6 +34,7 @@ from src.models.telemetry import (
 )
 from src.providers import get_provider
 from src.providers.base import ProviderError
+import src.otel.setup as otel_setup
 
 logger = structlog.get_logger(__name__)
 
@@ -112,7 +113,16 @@ async def gateway_pipeline(
     if api_key is not None:
         vk = key_manager.validate_key(api_key)
         if vk is None:
+            # Try to determine if this is specifically a budget exhaustion
+            budget_status = key_manager.get_budget_status_by_raw_key(api_key) if hasattr(key_manager, "get_budget_status_by_raw_key") else None
+            if budget_status and budget_status.get("budget_exceeded"):
+                log.warning("gateway_auth_failed", reason="budget_exceeded")
+                if otel_setup.gateway_budget_exceeded is not None:
+                    otel_setup.gateway_budget_exceeded.add(1, {"key_id": budget_status.get("key_id", "unknown")})
+                raise GatewayBudgetExceededError("Budget exceeded for API key")
             log.warning("gateway_auth_failed", reason="invalid_or_expired_key")
+            if otel_setup.gateway_auth_failures is not None:
+                otel_setup.gateway_auth_failures.add(1, {"reason": "invalid_or_expired_key"})
             raise GatewayAuthError("Invalid, disabled, expired, or over-budget API key")
         log = log.bind(key_id=vk.key_id, team=vk.team, owner=vk.owner)
 
@@ -126,6 +136,8 @@ async def gateway_pipeline(
             model=request.model,
         ):
             log.warning("gateway_permission_denied")
+            if otel_setup.gateway_auth_failures is not None:
+                otel_setup.gateway_auth_failures.add(1, {"reason": "permission_denied"})
             raise GatewayPermissionError(
                 f"Key '{vk.key_id}' is not permitted to access "
                 f"{request.provider.value}/{request.model}"
@@ -144,6 +156,10 @@ async def gateway_pipeline(
                 denied_reason=result.denied_reason,
                 retry_after=result.retry_after,
             )
+            if otel_setup.gateway_rate_limit_rejections is not None:
+                otel_setup.gateway_rate_limit_rejections.add(
+                    1, {"dimension": result.denied_reason or "unknown", "key_id": vk.key_id}
+                )
             raise GatewayRateLimitError(
                 f"Rate limit exceeded for key '{vk.key_id}': {result.denied_reason}. "
                 f"Retry after {result.retry_after:.1f}s"
@@ -163,12 +179,27 @@ async def gateway_pipeline(
             # Reconstruct ChatCompletionResponse from cached dict
             response = ChatCompletionResponse(**cached)
             _pipeline_latency = (time.perf_counter() - pipeline_start) * 1000
+
+            # Emit cache-hit metrics
+            if otel_setup.gateway_cache_hits is not None:
+                otel_setup.gateway_cache_hits.add(1)
+            cached_tokens = response.usage.total_tokens if response.usage else 0
+            if otel_setup.gateway_cache_tokens_saved is not None and cached_tokens > 0:
+                otel_setup.gateway_cache_tokens_saved.add(cached_tokens)
+            cached_cost = response.cost_usd or 0.0
+            if otel_setup.gateway_cache_cost_saved is not None and cached_cost > 0:
+                otel_setup.gateway_cache_cost_saved.add(cached_cost)
+
             log.info(
                 "gateway_request_completed",
                 source="cache",
                 latency_ms=round(_pipeline_latency, 2),
             )
             return response
+        else:
+            # Cache miss
+            if otel_setup.gateway_cache_misses is not None:
+                otel_setup.gateway_cache_misses.add(1)
 
     # -----------------------------------------------------------------
     # 5. Determine target (routing)
@@ -188,6 +219,10 @@ async def gateway_pipeline(
     if not circuit_breaker.can_execute(circuit_key):
         state = circuit_breaker.get_state(circuit_key)
         log.warning("gateway_circuit_open", circuit_key=circuit_key, state=state.value)
+        if otel_setup.gateway_circuit_breaker_trips is not None:
+            otel_setup.gateway_circuit_breaker_trips.add(
+                1, {"provider": target_provider, "new_state": "open"}
+            )
 
         # If we have a routing config with fallback, try the next target
         if routing_config and routing_config.strategy == RoutingStrategy.FALLBACK:

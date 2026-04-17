@@ -39,10 +39,33 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
+  # ClickHouse - Long-Term Analytics Store
+  # ---------------------------------------------------------------------------
+  # Columnar database for long-term LLM request analytics, cost aggregation,
+  # and historical trend analysis beyond Prometheus retention.
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: llm-o11y-clickhouse
+    ports:
+      - "8123:8123"   # HTTP interface
+      - "9000:9000"   # Native protocol
+    environment:
+      - CLICKHOUSE_DB=llm_o11y
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=llm-o11y
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - llm-o11y
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
   # OpenTelemetry Collector
   # ---------------------------------------------------------------------------
   # Central telemetry pipeline. Receives OTLP from the gateway and routes
-  # traces to Tempo, metrics to Prometheus, and logs to Loki.
+  # traces to Tempo, metrics to Prometheus, logs to Loki, and all signals
+  # to ClickHouse for long-term analytics.
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.96.0
     container_name: llm-o11y-otel-collector
@@ -57,6 +80,7 @@ services:
       - tempo
       - prometheus
       - loki
+      - clickhouse
     networks:
       - llm-o11y
     restart: unless-stopped
@@ -161,6 +185,8 @@ volumes:
   loki-data:
     driver: local
   grafana-data:
+    driver: local
+  clickhouse-data:
     driver: local
 
 # =============================================================================

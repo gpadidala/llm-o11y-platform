@@ -18,6 +18,7 @@ import structlog
 from pydantic import BaseModel
 
 from src.guardrails.pii import PIIDetector, pii_detector
+import src.otel.setup as otel_setup
 
 logger = structlog.get_logger(__name__)
 
@@ -130,18 +131,25 @@ class GuardrailsEngine:
         combined = " ".join(msg.get("content", "") for msg in messages)
 
         if cfg.enable_pii_detection:
-            results.extend(self.detect_pii(combined))
+            pii_results = self.detect_pii(combined)
+            results.extend(pii_results)
+            self._emit_guardrail_metrics(pii_results)
 
         if cfg.enable_content_safety:
-            results.append(self.check_content_safety(combined))
+            safety_result = self.check_content_safety(combined)
+            results.append(safety_result)
+            self._emit_guardrail_metrics([safety_result])
 
         if cfg.enable_topic_restriction and cfg.blocked_topics:
-            results.append(self.check_topic_restriction(combined, cfg.blocked_topics))
+            topic_result = self.check_topic_restriction(combined, cfg.blocked_topics)
+            results.append(topic_result)
+            self._emit_guardrail_metrics([topic_result])
 
         if cfg.custom_regex_blocks:
             for pattern in cfg.custom_regex_blocks:
                 result = self._check_custom_regex(combined, pattern)
                 results.append(result)
+                self._emit_guardrail_metrics([result])
 
         return results
 
@@ -163,23 +171,35 @@ class GuardrailsEngine:
         results: list[GuardrailResult] = []
 
         if cfg.enable_pii_detection:
-            results.extend(self.detect_pii(content))
+            pii_results = self.detect_pii(content)
+            results.extend(pii_results)
+            self._emit_guardrail_metrics(pii_results)
 
         if cfg.enable_content_safety:
-            results.append(self.check_content_safety(content))
+            safety_result = self.check_content_safety(content)
+            results.append(safety_result)
+            self._emit_guardrail_metrics([safety_result])
 
         if cfg.enable_output_validation:
             if cfg.output_json_schema:
-                results.append(self.validate_json_output(content, cfg.output_json_schema))
+                json_result = self.validate_json_output(content, cfg.output_json_schema)
+                results.append(json_result)
+                self._emit_guardrail_metrics([json_result])
             if cfg.output_regex:
-                results.append(self.validate_regex_output(content, cfg.output_regex))
+                regex_result = self.validate_regex_output(content, cfg.output_regex)
+                results.append(regex_result)
+                self._emit_guardrail_metrics([regex_result])
 
         if cfg.max_output_tokens is not None:
-            results.append(self._check_output_length(content, cfg.max_output_tokens))
+            length_result = self._check_output_length(content, cfg.max_output_tokens)
+            results.append(length_result)
+            self._emit_guardrail_metrics([length_result])
 
         if cfg.custom_regex_blocks:
             for pattern in cfg.custom_regex_blocks:
-                results.append(self._check_custom_regex(content, pattern))
+                result = self._check_custom_regex(content, pattern)
+                results.append(result)
+                self._emit_guardrail_metrics([result])
 
         return results
 
@@ -453,6 +473,36 @@ class GuardrailsEngine:
                 details=f"Invalid regex pattern: {exc}",
                 latency_ms=round(elapsed_ms, 2),
             )
+
+    # -- Metric emission ------------------------------------------------------
+
+    @staticmethod
+    def _emit_guardrail_metrics(results: list[GuardrailResult]) -> None:
+        """Emit OTel metrics for a batch of guardrail results."""
+        for result in results:
+            # Every check gets a guardrail.checks counter tick
+            if otel_setup.guardrail_checks is not None:
+                otel_setup.guardrail_checks.add(
+                    1, {"rule_name": result.rule_name, "action": result.action.value}
+                )
+
+            # Violations (anything that is not ALLOW)
+            if result.action != GuardrailAction.ALLOW:
+                if otel_setup.guardrail_violations is not None:
+                    otel_setup.guardrail_violations.add(
+                        1,
+                        {
+                            "rule_name": result.rule_name,
+                            "action": result.action.value,
+                            "violation_type": result.rule_name,
+                        },
+                    )
+
+            # PII-specific metric: emit per PII type detected
+            if result.rule_name.startswith("pii_detection_") and not result.passed:
+                pii_type = result.rule_name.replace("pii_detection_", "")
+                if otel_setup.guardrail_pii_detected is not None:
+                    otel_setup.guardrail_pii_detected.add(1, {"pii_type": pii_type})
 
     # -- Private helpers -----------------------------------------------------
 

@@ -48,6 +48,33 @@ mcp_tool_call_counter: metrics.Counter = None  # type: ignore[assignment]
 mcp_tool_call_duration: metrics.Histogram = None  # type: ignore[assignment]
 mcp_session_cost_counter: metrics.Counter = None  # type: ignore[assignment]
 
+# ---------------------------------------------------------------------------
+# Gateway operational metrics
+# ---------------------------------------------------------------------------
+gateway_cache_hits: metrics.Counter = None  # type: ignore[assignment]
+gateway_cache_misses: metrics.Counter = None  # type: ignore[assignment]
+gateway_cache_tokens_saved: metrics.Counter = None  # type: ignore[assignment]
+gateway_cache_cost_saved: metrics.Counter = None  # type: ignore[assignment]
+gateway_rate_limit_rejections: metrics.Counter = None  # type: ignore[assignment]
+gateway_circuit_breaker_trips: metrics.Counter = None  # type: ignore[assignment]
+gateway_circuit_breaker_state: metrics.UpDownCounter = None  # type: ignore[assignment]
+gateway_auth_failures: metrics.Counter = None  # type: ignore[assignment]
+gateway_budget_exceeded: metrics.Counter = None  # type: ignore[assignment]
+
+# ---------------------------------------------------------------------------
+# Guardrail metrics
+# ---------------------------------------------------------------------------
+guardrail_checks: metrics.Counter = None  # type: ignore[assignment]
+guardrail_violations: metrics.Counter = None  # type: ignore[assignment]
+guardrail_pii_detected: metrics.Counter = None  # type: ignore[assignment]
+
+# ---------------------------------------------------------------------------
+# Evaluation metrics
+# ---------------------------------------------------------------------------
+eval_runs: metrics.Counter = None  # type: ignore[assignment]
+eval_scores: metrics.Histogram = None  # type: ignore[assignment]
+eval_latency: metrics.Histogram = None  # type: ignore[assignment]
+
 
 def init_telemetry(app=None):
     """Initialize OpenTelemetry and optionally instrument a FastAPI app.
@@ -62,6 +89,12 @@ def init_telemetry(app=None):
     global llm_request_counter, llm_token_counter, llm_cost_counter
     global llm_request_duration, llm_ttft_histogram
     global mcp_tool_call_counter, mcp_tool_call_duration, mcp_session_cost_counter
+    global gateway_cache_hits, gateway_cache_misses, gateway_cache_tokens_saved
+    global gateway_cache_cost_saved, gateway_rate_limit_rejections
+    global gateway_circuit_breaker_trips, gateway_circuit_breaker_state
+    global gateway_auth_failures, gateway_budget_exceeded
+    global guardrail_checks, guardrail_violations, guardrail_pii_detected
+    global eval_runs, eval_scores, eval_latency
 
     endpoint = settings.otel_exporter_otlp_endpoint
     service_name = settings.otel_service_name
@@ -147,6 +180,27 @@ def init_telemetry(app=None):
         description="Accumulated cost in USD by session and agent",
         unit="usd",
     )
+
+    # ---- Gateway operational metrics ---------------------------------
+    gateway_cache_hits = meter.create_counter("gateway.cache.hits", description="Cache hits", unit="1")
+    gateway_cache_misses = meter.create_counter("gateway.cache.misses", description="Cache misses", unit="1")
+    gateway_cache_tokens_saved = meter.create_counter("gateway.cache.tokens.saved", description="Tokens saved by cache", unit="token")
+    gateway_cache_cost_saved = meter.create_counter("gateway.cache.cost.saved", description="Cost saved by cache", unit="usd")
+    gateway_rate_limit_rejections = meter.create_counter("gateway.rate.limit.rejections", description="Rate limit rejections", unit="1")
+    gateway_circuit_breaker_trips = meter.create_counter("gateway.circuit.breaker.trips", description="Circuit breaker state changes", unit="1")
+    gateway_circuit_breaker_state = meter.create_up_down_counter("gateway.circuit.breaker.state", description="Circuit breaker current state (0=closed,1=open,2=half_open)", unit="1")
+    gateway_auth_failures = meter.create_counter("gateway.auth.failures", description="Auth failures", unit="1")
+    gateway_budget_exceeded = meter.create_counter("gateway.budget.exceeded", description="Budget exceeded events", unit="1")
+
+    # ---- Guardrail metrics -------------------------------------------
+    guardrail_checks = meter.create_counter("guardrail.checks", description="Guardrail check executions", unit="1")
+    guardrail_violations = meter.create_counter("guardrail.violations", description="Guardrail violations detected", unit="1")
+    guardrail_pii_detected = meter.create_counter("guardrail.pii.detected", description="PII instances detected", unit="1")
+
+    # ---- Evaluation metrics ------------------------------------------
+    eval_runs = meter.create_counter("eval.runs", description="Evaluation runs", unit="1")
+    eval_scores = meter.create_histogram("eval.scores", description="Evaluation scores distribution", unit="1")
+    eval_latency = meter.create_histogram("eval.latency", description="Evaluation judge latency", unit="ms")
 
     # ---- Auto-instrumentation --------------------------------------------
     if app is not None:

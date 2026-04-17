@@ -96,17 +96,38 @@ def emit_llm_span(record: LLMRequestRecord) -> None:
     _emit_metrics(record)
 
 
+def _classify_error_type(record: LLMRequestRecord) -> str:
+    """Derive a canonical error_type label from the record's status and error message."""
+    if record.status == "success":
+        return ""
+    error = (record.error or "").lower()
+    if "rate" in error or "429" in error:
+        return "rate_limit"
+    if "timeout" in error or "timed out" in error:
+        return "timeout"
+    if "auth" in error or "401" in error or "403" in error:
+        return "auth"
+    if "500" in error or "502" in error or "503" in error:
+        return "server_error"
+    return "unknown"
+
+
 def _emit_metrics(record: LLMRequestRecord) -> None:
     """Update OTel counters and histograms for the given LLM request record."""
     provider = record.provider.value
     model = record.model
     status = record.status
+    error_type = _classify_error_type(record)
+    streaming = "true" if record.ttft_ms is not None else "false"
 
     common_attrs = {"provider": provider, "model": model}
 
     # Request count
     if otel_setup.llm_request_counter is not None:
-        otel_setup.llm_request_counter.add(1, {**common_attrs, "status": status})
+        otel_setup.llm_request_counter.add(
+            1,
+            {**common_attrs, "status": status, "error_type": error_type, "streaming": streaming},
+        )
 
     # Token usage
     if otel_setup.llm_token_counter is not None:
