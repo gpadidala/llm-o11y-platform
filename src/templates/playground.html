@@ -407,6 +407,177 @@
                 <textarea class="form-textarea" id="pg-system" rows="3" placeholder="You are a helpful assistant..."></textarea>
             </div>
 
+            <!-- Prompt Techniques Panel -->
+            <div style="border: 1px solid var(--border-color); border-radius: var(--radius); overflow: hidden;">
+                <button onclick="this.parentElement.classList.toggle('tech-open')" style="
+                    width: 100%; display: flex; align-items: center; justify-content: space-between;
+                    padding: 10px 16px; background: rgba(168,85,247,0.06); border: none;
+                    color: var(--purple-light); font-size: 0.82rem; font-weight: 700; cursor: pointer;
+                    font-family: inherit; transition: background 0.2s;
+                " onmouseover="this.style.background='rgba(168,85,247,0.12)'" onmouseout="this.style.background='rgba(168,85,247,0.06)'">
+                    <span>&#x1F9E0; Prompt Techniques</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">Click to expand &bull; 12 techniques</span>
+                </button>
+                <div class="techniques-grid" style="display: none; padding: 12px; gap: 8px; flex-wrap: wrap;">
+                </div>
+            </div>
+            <style>
+                .tech-open .techniques-grid { display: flex !important; }
+                .tech-card {
+                    flex: 1 1 calc(33.33% - 8px); min-width: 180px; padding: 10px 12px;
+                    background: var(--bg-card); border: 1px solid var(--border-color);
+                    border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s;
+                }
+                .tech-card:hover { border-color: var(--purple); background: rgba(168,85,247,0.08); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+                .tech-card.tech-active { border-color: var(--purple); background: rgba(168,85,247,0.12); box-shadow: 0 0 0 2px rgba(168,85,247,0.2); }
+                .tech-card .tech-icon { font-size: 18px; margin-bottom: 4px; }
+                .tech-card .tech-name { font-size: 0.78rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+                .tech-card .tech-desc { font-size: 0.68rem; color: var(--text-muted); line-height: 1.4; }
+                .tech-card .tech-badge { display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 3px; font-size: 0.6rem; font-weight: 700; }
+            </style>
+            {% raw %}
+            <script>
+            var PROMPT_TECHNIQUES = [
+                {
+                    id: "cot", icon: "&#x1F9E0;", name: "Chain of Thought",
+                    desc: "Step-by-step reasoning for complex problems",
+                    badge: "Reasoning", badgeColor: "#a855f7",
+                    system: "You are an expert problem solver. Think through problems step by step. For each step, explain your reasoning clearly before moving to the next. Show your complete chain of thought before giving a final answer.",
+                    temp: 0.3, tokens: 2048
+                },
+                {
+                    id: "fewshot", icon: "&#x1F4DA;", name: "Few-Shot Learning",
+                    desc: "Teach by example — provide 2-3 examples first",
+                    badge: "Learning", badgeColor: "#3b82f6",
+                    system: "You learn from examples provided by the user. Follow the exact same format and style as the examples given. Be consistent with the pattern demonstrated.",
+                    userHint: "Example 1:\nInput: ...\nOutput: ...\n\nExample 2:\nInput: ...\nOutput: ...\n\nNow do this:\nInput: ",
+                    temp: 0.2, tokens: 1024
+                },
+                {
+                    id: "persona", icon: "&#x1F3AD;", name: "Role / Persona",
+                    desc: "Assign a specific expert identity",
+                    badge: "Identity", badgeColor: "#22c55e",
+                    system: "You are a [ROLE] with 20 years of experience. You speak with authority and deep domain expertise. Provide detailed, professional answers drawing from your extensive experience. Use industry-specific terminology appropriately.",
+                    temp: 0.7, tokens: 2048
+                },
+                {
+                    id: "tree", icon: "&#x1F333;", name: "Tree of Thought",
+                    desc: "Explore multiple reasoning paths, then pick the best",
+                    badge: "Advanced", badgeColor: "#f97316",
+                    system: "For each problem, explore 3 different reasoning approaches. For each approach:\n1. State the approach\n2. Work through the reasoning\n3. Evaluate the strength of this approach (1-10)\n\nThen select the strongest approach and present your final answer based on it.",
+                    temp: 0.5, tokens: 4096
+                },
+                {
+                    id: "react", icon: "&#x2699;&#xFE0F;", name: "ReAct Pattern",
+                    desc: "Reason + Act — think then decide what to do",
+                    badge: "Agents", badgeColor: "#06b6d4",
+                    system: "You follow the ReAct pattern. For each step:\n\nThought: [analyze the current situation]\nAction: [decide what to do next]\nObservation: [state what you learned]\n\nRepeat until you have a final answer. Then provide:\nFinal Answer: [your conclusion]",
+                    temp: 0.4, tokens: 2048
+                },
+                {
+                    id: "json", icon: "&#x1F4CB;", name: "Structured Output",
+                    desc: "Force JSON, YAML, or table output format",
+                    badge: "Format", badgeColor: "#ec4899",
+                    system: "You always respond in valid JSON format. Your response must be parseable by JSON.parse(). Do not include any text outside the JSON structure. Use this schema:\n{\n  \"answer\": \"...\",\n  \"confidence\": 0.0-1.0,\n  \"reasoning\": \"...\"\n}",
+                    temp: 0.1, tokens: 1024
+                },
+                {
+                    id: "socratic", icon: "&#x2753;", name: "Socratic Method",
+                    desc: "Guide through questions instead of direct answers",
+                    badge: "Teaching", badgeColor: "#f59e0b",
+                    system: "You are a Socratic tutor. Instead of giving direct answers, guide the user to discover the answer themselves by asking thoughtful, progressive questions. Break complex topics into smaller discoveries. Acknowledge correct reasoning and gently redirect incorrect paths.",
+                    temp: 0.7, tokens: 1024
+                },
+                {
+                    id: "critic", icon: "&#x1F50D;", name: "Self-Critique",
+                    desc: "Generate answer, then critique and improve it",
+                    badge: "Quality", badgeColor: "#ef4444",
+                    system: "Follow this process for every response:\n\n1. DRAFT: Write your initial answer\n2. CRITIQUE: Identify weaknesses, errors, or gaps in your draft\n3. IMPROVE: Rewrite the answer addressing all identified issues\n4. FINAL: Present only the improved version as your response\n\nThe user should only see the final improved version.",
+                    temp: 0.5, tokens: 2048
+                },
+                {
+                    id: "constrain", icon: "&#x1F512;", name: "Constraint-Based",
+                    desc: "Set strict rules the output must follow",
+                    badge: "Control", badgeColor: "#14b8a6",
+                    system: "Follow these constraints strictly:\n- Maximum 3 paragraphs\n- Use simple language (8th grade reading level)\n- No jargon or technical terms without explanation\n- Every claim must include a brief justification\n- End with a one-sentence summary",
+                    temp: 0.5, tokens: 1024
+                },
+                {
+                    id: "meta", icon: "&#x1F4A1;", name: "Meta-Prompting",
+                    desc: "Ask the LLM to write its own optimal prompt",
+                    badge: "Meta", badgeColor: "#8b5cf6",
+                    system: "You are a prompt engineering expert. When the user describes a task, your job is to:\n1. Analyze what they need\n2. Design an optimal system prompt for that task\n3. Suggest the best model and parameters\n4. Provide example user messages\n\nFormat your response as a complete prompt configuration that could be copy-pasted.",
+                    temp: 0.6, tokens: 2048
+                },
+                {
+                    id: "decompose", icon: "&#x1F9E9;", name: "Task Decomposition",
+                    desc: "Break complex tasks into sub-tasks automatically",
+                    badge: "Planning", badgeColor: "#d946ef",
+                    system: "When given a complex task:\n1. Break it into 3-7 sequential sub-tasks\n2. For each sub-task, explain what needs to be done\n3. Execute each sub-task in order\n4. After each sub-task, summarize the result\n5. Combine all results into a final comprehensive output\n\nAlways show the task breakdown before starting execution.",
+                    temp: 0.4, tokens: 4096
+                },
+                {
+                    id: "debate", icon: "&#x2696;&#xFE0F;", name: "Multi-Perspective",
+                    desc: "Argue from multiple viewpoints before concluding",
+                    badge: "Balanced", badgeColor: "#0ea5e9",
+                    system: "For every topic, present exactly 3 perspectives:\n\n**Perspective A (For):** Arguments supporting the position\n**Perspective B (Against):** Arguments opposing the position  \n**Perspective C (Nuanced):** A balanced middle ground\n\nThen provide your **Synthesis:** combining the strongest points from each perspective into a balanced conclusion.",
+                    temp: 0.6, tokens: 2048
+                }
+            ];
+
+            function renderTechniqueCards() {
+                var grid = document.querySelector('.techniques-grid');
+                if (!grid) return;
+                grid.innerHTML = PROMPT_TECHNIQUES.map(function(t) {
+                    return '<div class="tech-card" data-tech="' + t.id + '" onclick="applyTechnique(\'' + t.id + '\')">' +
+                        '<div class="tech-icon">' + t.icon + '</div>' +
+                        '<div class="tech-name">' + t.name + '</div>' +
+                        '<div class="tech-desc">' + t.desc + '</div>' +
+                        '<span class="tech-badge" style="background:' + t.badgeColor + '22;color:' + t.badgeColor + ';">' + t.badge + '</span>' +
+                    '</div>';
+                }).join('');
+            }
+
+            function applyTechnique(techId) {
+                var tech = PROMPT_TECHNIQUES.find(function(t) { return t.id === techId; });
+                if (!tech) return;
+
+                // Set system prompt
+                var sysEl = document.getElementById('pg-system');
+                if (sysEl) sysEl.value = tech.system;
+
+                // Set user message hint if available
+                if (tech.userHint) {
+                    var msgEl = document.getElementById('pg-message');
+                    if (msgEl && !msgEl.value) msgEl.value = tech.userHint;
+                }
+
+                // Set parameters
+                if (tech.temp !== undefined) {
+                    var tempEl = document.getElementById('pg-temp');
+                    var tempVal = document.getElementById('pg-temp-val');
+                    if (tempEl) { tempEl.value = tech.temp; if (tempVal) tempVal.textContent = tech.temp; }
+                }
+                if (tech.tokens !== undefined) {
+                    var tokEl = document.getElementById('pg-tokens');
+                    var tokVal = document.getElementById('pg-tokens-val');
+                    if (tokEl) { tokEl.value = tech.tokens; if (tokVal) tokVal.textContent = tech.tokens; }
+                }
+
+                // Highlight active card
+                document.querySelectorAll('.tech-card').forEach(function(c) { c.classList.remove('tech-active'); });
+                var active = document.querySelector('.tech-card[data-tech="' + techId + '"]');
+                if (active) active.classList.add('tech-active');
+
+                // Show toast
+                if (typeof showToast === 'function') showToast('Applied: ' + tech.name, 'success');
+            }
+
+            // Render on load
+            document.addEventListener('DOMContentLoaded', renderTechniqueCards);
+            </script>
+            {% endraw %}
+
             <div class="form-group">
                 <label class="form-label">User Message</label>
                 <div class="prompt-area with-lines">
