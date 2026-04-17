@@ -1,0 +1,589 @@
+{% extends "base.html" %}
+{% set active_page = "logs" %}
+
+{% block title %}Logs & Traces - LLM O11y Platform{% endblock %}
+{% block header_title %}Request Explorer{% endblock %}
+
+{% block extra_styles %}
+.filter-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.filter-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.filter-bar .form-input,
+.filter-bar .form-select {
+    padding: 7px 12px;
+    font-size: 0.82rem;
+}
+
+.filter-bar .form-select {
+    min-width: 130px;
+}
+
+.filter-bar .form-input[type="text"] {
+    min-width: 200px;
+}
+
+/* Request Table */
+.request-row {
+    cursor: pointer;
+}
+
+.request-row:hover {
+    background: rgba(168, 85, 247, 0.06) !important;
+}
+
+.request-row.expanded {
+    background: rgba(168, 85, 247, 0.04);
+}
+
+.request-id {
+    font-family: monospace;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.status-badge.s200 { background: rgba(34, 197, 94, 0.12); color: var(--green); }
+.status-badge.s201 { background: rgba(34, 197, 94, 0.12); color: var(--green); }
+.status-badge.s400 { background: rgba(245, 158, 11, 0.12); color: var(--amber); }
+.status-badge.s401 { background: rgba(244, 63, 94, 0.12); color: var(--coral); }
+.status-badge.s429 { background: rgba(245, 158, 11, 0.12); color: var(--amber); }
+.status-badge.s500 { background: rgba(244, 63, 94, 0.12); color: var(--coral); }
+.status-badge.s503 { background: rgba(244, 63, 94, 0.12); color: var(--coral); }
+
+.latency-bar-container {
+    width: 60px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.latency-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+/* Expanded Row Detail */
+.request-detail-row td {
+    padding: 0 !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.request-detail-content {
+    padding: 20px;
+    background: rgba(13, 17, 23, 0.4);
+    display: none;
+}
+
+.request-detail-content.visible {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.detail-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.detail-section-header {
+    padding: 10px 14px;
+    background: rgba(22, 27, 34, 0.6);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-section-body {
+    padding: 14px;
+}
+
+/* Token breakdown bar */
+.token-breakdown {
+    display: flex;
+    height: 24px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.token-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: white;
+    transition: width 0.5s ease;
+}
+
+/* Trace Timeline */
+.trace-timeline {
+    position: relative;
+    padding: 12px 0;
+}
+
+.trace-span {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+}
+
+.trace-span-label {
+    font-size: 0.78rem;
+    min-width: 120px;
+    color: var(--text-secondary);
+}
+
+.trace-span-bar {
+    height: 16px;
+    border-radius: 3px;
+    position: relative;
+    min-width: 4px;
+}
+
+.trace-span-duration {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 60px;
+    text-align: right;
+}
+
+/* Guardrail result */
+.guardrail-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    font-size: 0.82rem;
+}
+
+.guardrail-icon {
+    font-size: 1rem;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+}
+
+.pagination-info {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.page-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.page-btn:hover {
+    border-color: var(--purple);
+    color: var(--text-primary);
+}
+
+.page-btn.active {
+    background: var(--purple);
+    border-color: var(--purple);
+    color: white;
+}
+
+@media (max-width: 1024px) {
+    .detail-grid { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-text">
+        <h1 class="page-title">Request Explorer</h1>
+        <p class="page-subtitle">Explore, filter, and analyze all requests flowing through your AI gateway.</p>
+    </div>
+    <div class="flex gap-8">
+        <button class="btn btn-secondary btn-sm" onclick="exportLogs()">&#x1F4E5; Export</button>
+        <button class="btn btn-primary btn-sm" onclick="refreshLogs()">&#x21BB; Refresh</button>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="filter-group">
+        <span class="filter-label">Provider</span>
+        <select class="form-select" id="filter-provider" onchange="applyFilters()">
+            <option value="">All Providers</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="google">Google</option>
+            <option value="azure">Azure</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <span class="filter-label">Model</span>
+        <select class="form-select" id="filter-model" onchange="applyFilters()">
+            <option value="">All Models</option>
+            <option>gpt-4o</option>
+            <option>gpt-4o-mini</option>
+            <option>claude-3.5-sonnet</option>
+            <option>gemini-pro</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <span class="filter-label">Status</span>
+        <select class="form-select" id="filter-status" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="2xx">2xx Success</option>
+            <option value="4xx">4xx Client Error</option>
+            <option value="5xx">5xx Server Error</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <span class="filter-label">Date Range</span>
+        <select class="form-select" id="filter-range">
+            <option>Last 1 hour</option>
+            <option selected>Last 24 hours</option>
+            <option>Last 7 days</option>
+            <option>Last 30 days</option>
+        </select>
+    </div>
+    <div class="filter-group" style="flex: 1;">
+        <span class="filter-label">Search</span>
+        <input type="text" class="form-input" placeholder="Search request ID, model, or content..." id="filter-search" oninput="applyFilters()">
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="clearFilters()" style="align-self: flex-end;">Clear</button>
+</div>
+
+<!-- Request Table -->
+<div class="table-container" style="margin-bottom: 16px;">
+    <table class="data-table" id="logs-table">
+        <thead>
+            <tr>
+                <th class="sortable" onclick="sortTable('time')">Timestamp &#x25BE;</th>
+                <th>Request ID</th>
+                <th class="sortable" onclick="sortTable('provider')">Provider</th>
+                <th class="sortable" onclick="sortTable('model')">Model</th>
+                <th class="sortable" onclick="sortTable('status')">Status</th>
+                <th class="sortable" onclick="sortTable('latency')">Latency</th>
+                <th class="sortable" onclick="sortTable('tokens')">Tokens</th>
+                <th class="sortable" onclick="sortTable('cost')">Cost</th>
+            </tr>
+        </thead>
+        <tbody id="logs-tbody">
+            <tr class="request-row" onclick="toggleDetail('r1')">
+                <td style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">2026-04-16 14:32:08</td>
+                <td><span class="request-id">req_7f8a2b3c</span></td>
+                <td><span class="badge badge-purple">OpenAI</span></td>
+                <td>gpt-4o</td>
+                <td><span class="status-badge s200">200</span></td>
+                <td>
+                    <span class="latency-bar-container"><span class="latency-bar-fill" style="width: 42%; background: var(--green);"></span></span>
+                    0.84s
+                </td>
+                <td>1,240</td>
+                <td>$0.024</td>
+            </tr>
+            <tr class="request-detail-row" id="detail-r1">
+                <td colspan="8">
+                    <div class="request-detail-content">
+                        <div class="detail-grid">
+                            <div class="detail-section">
+                                <div class="detail-section-header">&#x1F4E4; Request</div>
+                                <div class="detail-section-body">
+                                    <div class="code-block" style="max-height: 200px; overflow-y: auto; font-size: 0.78rem;">{"model": "gpt-4o",
+"messages": [
+  {"role": "system", "content": "You are a helpful assistant."},
+  {"role": "user", "content": "Explain the concept of prompt engineering in 3 paragraphs."}
+],
+"temperature": 0.7,
+"max_tokens": 1024}</div>
+                                </div>
+                            </div>
+                            <div class="detail-section">
+                                <div class="detail-section-header">&#x1F4E5; Response</div>
+                                <div class="detail-section-body">
+                                    <div class="code-block" style="max-height: 200px; overflow-y: auto; font-size: 0.78rem;">Prompt engineering is the practice of crafting inputs to AI language models to elicit desired outputs. It involves understanding how models interpret instructions and structuring prompts effectively...
+
+[Truncated for brevity - full response available via API]</div>
+                                </div>
+                            </div>
+                            <div class="detail-section">
+                                <div class="detail-section-header">&#x1F4CA; Token Breakdown</div>
+                                <div class="detail-section-body">
+                                    <div class="token-breakdown">
+                                        <div class="token-segment" style="width: 35%; background: var(--purple);">Prompt 434</div>
+                                        <div class="token-segment" style="width: 65%; background: var(--blue);">Completion 806</div>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-muted">
+                                        <span>Prompt: 434 tokens</span>
+                                        <span>Completion: 806 tokens</span>
+                                        <span>Total: 1,240 tokens</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="detail-section">
+                                <div class="detail-section-header">&#x1F50D; Trace Timeline</div>
+                                <div class="detail-section-body">
+                                    <div class="trace-timeline">
+                                        <div class="trace-span">
+                                            <span class="trace-span-label">Gateway</span>
+                                            <div class="trace-span-bar" style="width: 100%; background: rgba(168,85,247,0.3);"></div>
+                                            <span class="trace-span-duration">840ms</span>
+                                        </div>
+                                        <div class="trace-span">
+                                            <span class="trace-span-label">Guardrails</span>
+                                            <div class="trace-span-bar" style="width: 5%; background: rgba(20,184,166,0.5); margin-left: 2%;"></div>
+                                            <span class="trace-span-duration">12ms</span>
+                                        </div>
+                                        <div class="trace-span">
+                                            <span class="trace-span-label">Cache Check</span>
+                                            <div class="trace-span-bar" style="width: 2%; background: rgba(6,182,212,0.5); margin-left: 7%;"></div>
+                                            <span class="trace-span-duration">3ms</span>
+                                        </div>
+                                        <div class="trace-span">
+                                            <span class="trace-span-label">Provider Call</span>
+                                            <div class="trace-span-bar" style="width: 90%; background: rgba(59,130,246,0.4); margin-left: 9%;"></div>
+                                            <span class="trace-span-duration">812ms</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-12 mt-8">
+                                        <div class="guardrail-result">
+                                            <span class="guardrail-icon" style="color: var(--green);">&#x2705;</span>
+                                            <span>PII Detection: Clear</span>
+                                        </div>
+                                        <div class="guardrail-result">
+                                            <span class="guardrail-icon" style="color: var(--green);">&#x2705;</span>
+                                            <span>Content Safety: Passed</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+
+            <tr class="request-row" onclick="toggleDetail('r2')">
+                <td style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">2026-04-16 14:30:42</td>
+                <td><span class="request-id">req_3d9e1a7b</span></td>
+                <td><span class="badge badge-blue">Anthropic</span></td>
+                <td>claude-3.5-sonnet</td>
+                <td><span class="status-badge s200">200</span></td>
+                <td>
+                    <span class="latency-bar-container"><span class="latency-bar-fill" style="width: 61%; background: var(--amber);"></span></span>
+                    1.21s
+                </td>
+                <td>2,100</td>
+                <td>$0.048</td>
+            </tr>
+            <tr class="request-detail-row" id="detail-r2"><td colspan="8"><div class="request-detail-content"><div style="padding: 20px; color: var(--text-muted); text-align: center;">Click to expand full request details</div></div></td></tr>
+
+            <tr class="request-row" onclick="toggleDetail('r3')">
+                <td style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">2026-04-16 14:28:15</td>
+                <td><span class="request-id">req_5b2c8f4e</span></td>
+                <td><span class="badge badge-purple">OpenAI</span></td>
+                <td>text-embedding-3-small</td>
+                <td><span class="status-badge s200">200</span></td>
+                <td>
+                    <span class="latency-bar-container"><span class="latency-bar-fill" style="width: 3%; background: var(--green);"></span></span>
+                    0.02s
+                </td>
+                <td>512</td>
+                <td>$0.001</td>
+            </tr>
+            <tr class="request-detail-row" id="detail-r3"><td colspan="8"><div class="request-detail-content"><div style="padding: 20px; color: var(--text-muted); text-align: center;">Click to expand full request details</div></div></td></tr>
+
+            <tr class="request-row" onclick="toggleDetail('r4')">
+                <td style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">2026-04-16 14:25:33</td>
+                <td><span class="request-id">req_9a1d6e3f</span></td>
+                <td><span class="badge badge-teal">Azure</span></td>
+                <td>gpt-4o-mini</td>
+                <td><span class="status-badge s429">429</span></td>
+                <td>
+                    <span class="latency-bar-container"><span class="latency-bar-fill" style="width: 6%; background: var(--coral);"></span></span>
+                    0.12s
+                </td>
+                <td>0</td>
+                <td>$0.000</td>
+            </tr>
+            <tr class="request-detail-row" id="detail-r4"><td colspan="8"><div class="request-detail-content"><div style="padding: 20px; color: var(--text-muted); text-align: center;">Rate limited - retried via fallback route</div></div></td></tr>
+
+            <tr class="request-row" onclick="toggleDetail('r5')">
+                <td style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">2026-04-16 14:22:50</td>
+                <td><span class="request-id">req_2c4b7a8d</span></td>
+                <td><span class="badge badge-amber">Google</span></td>
+                <td>gemini-pro</td>
+                <td><span class="status-badge s200">200</span></td>
+                <td>
+                    <span class="latency-bar-container"><span class="latency-bar-fill" style="width: 33%; background: var(--green);"></span></span>
+                    0.65s
+                </td>
+                <td>890</td>
+                <td>$0.012</td>
+            </tr>
+            <tr class="request-detail-row" id="detail-r5"><td colspan="8"><div class="request-detail-content"><div style="padding: 20px; color: var(--text-muted); text-align: center;">Click to expand full request details</div></div></td></tr>
+
+            <tr class="request-row" onclick="toggleDetail('r6')">
+                <td style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">2026-04-16 14:20:18</td>
+                <td><span class="request-id">req_6f3e9b2a</span></td>
+                <td><span class="badge badge-blue">Anthropic</span></td>
+                <td>claude-3-haiku</td>
+                <td><span class="status-badge s200">200</span></td>
+                <td>
+                    <span class="latency-bar-container"><span class="latency-bar-fill" style="width: 21%; background: var(--green);"></span></span>
+                    0.42s
+                </td>
+                <td>450</td>
+                <td>$0.003</td>
+            </tr>
+            <tr class="request-detail-row" id="detail-r6"><td colspan="8"><div class="request-detail-content"><div style="padding: 20px; color: var(--text-muted); text-align: center;">Click to expand full request details</div></div></td></tr>
+
+            <tr class="request-row" onclick="toggleDetail('r7')">
+                <td style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">2026-04-16 14:18:05</td>
+                <td><span class="request-id">req_1a8c5d4e</span></td>
+                <td><span class="badge badge-purple">OpenAI</span></td>
+                <td>gpt-4o</td>
+                <td><span class="status-badge s500">500</span></td>
+                <td>
+                    <span class="latency-bar-container"><span class="latency-bar-fill" style="width: 15%; background: var(--coral);"></span></span>
+                    0.31s
+                </td>
+                <td>0</td>
+                <td>$0.000</td>
+            </tr>
+            <tr class="request-detail-row" id="detail-r7"><td colspan="8"><div class="request-detail-content"><div style="padding: 20px; color: var(--text-muted); text-align: center;">Internal server error - provider timeout</div></div></td></tr>
+
+            <tr class="request-row" onclick="toggleDetail('r8')">
+                <td style="font-size: 0.82rem; font-variant-numeric: tabular-nums;">2026-04-16 14:15:30</td>
+                <td><span class="request-id">req_8b5f2c7a</span></td>
+                <td><span class="badge badge-purple">OpenAI</span></td>
+                <td>gpt-4o-mini</td>
+                <td><span class="status-badge s200">200</span></td>
+                <td>
+                    <span class="latency-bar-container"><span class="latency-bar-fill" style="width: 18%; background: var(--green);"></span></span>
+                    0.36s
+                </td>
+                <td>680</td>
+                <td>$0.004</td>
+            </tr>
+            <tr class="request-detail-row" id="detail-r8"><td colspan="8"><div class="request-detail-content"><div style="padding: 20px; color: var(--text-muted); text-align: center;">Click to expand full request details</div></div></td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    <span class="pagination-info">Showing 1-8 of 24,847 requests</span>
+    <div class="pagination-buttons">
+        <button class="page-btn" disabled>&laquo;</button>
+        <button class="page-btn active">1</button>
+        <button class="page-btn">2</button>
+        <button class="page-btn">3</button>
+        <button class="page-btn">...</button>
+        <button class="page-btn">3,106</button>
+        <button class="page-btn">&raquo;</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleDetail(id) {
+        const row = document.getElementById('detail-' + id);
+        if (!row) return;
+        const content = row.querySelector('.request-detail-content');
+        if (content) {
+            content.classList.toggle('visible');
+        }
+    }
+
+    function applyFilters() {
+        // Filter logic - in production this would hit the API
+        showToast('Filters applied', 'info');
+    }
+
+    function clearFilters() {
+        document.getElementById('filter-provider').value = '';
+        document.getElementById('filter-model').value = '';
+        document.getElementById('filter-status').value = '';
+        document.getElementById('filter-search').value = '';
+        showToast('Filters cleared', 'info');
+    }
+
+    function sortTable(column) {
+        showToast('Sorted by ' + column, 'info');
+    }
+
+    function refreshLogs() {
+        showToast('Refreshing logs...', 'info');
+    }
+
+    function exportLogs() {
+        showToast('Exporting logs as CSV...', 'info');
+    }
+</script>
+{% endblock %}

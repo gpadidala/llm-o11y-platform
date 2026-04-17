@@ -1,0 +1,889 @@
+{
+  "uid": "ai-cost-intel",
+  "title": "AI Cost Intelligence",
+  "description": "Deep cost analysis, forecasting, efficiency metrics, and budget tracking for the AI platform.",
+  "tags": ["llm", "cost", "intelligence", "advanced"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "links": [
+    {
+      "title": "AI Reliability Engineering",
+      "type": "link",
+      "url": "/d/ai-reliability/ai-reliability-engineering",
+      "icon": "heart",
+      "tooltip": "SLI/SLO tracking and reliability engineering",
+      "targetBlank": false
+    },
+    {
+      "title": "AI Model Comparison",
+      "type": "link",
+      "url": "/d/ai-model-compare/ai-model-comparison",
+      "icon": "exchange-alt",
+      "tooltip": "Side-by-side model benchmarking",
+      "targetBlank": false
+    },
+    {
+      "title": "AI Agent & MCP Sessions",
+      "type": "link",
+      "url": "/d/ai-agent-sessions/ai-agent-mcp-sessions",
+      "icon": "users-alt",
+      "tooltip": "Agent and MCP tool call intelligence",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "provider",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(llm_cost_usd_total, provider)",
+        "query": {
+          "query": "label_values(llm_cost_usd_total, provider)",
+          "refId": "StandardVariableQuery"
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "model",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(llm_cost_usd_total{provider=~\"$provider\"}, model)",
+        "query": {
+          "query": "label_values(llm_cost_usd_total{provider=~\"$provider\"}, model)",
+          "refId": "StandardVariableQuery"
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "time_range",
+        "type": "custom",
+        "query": "1h,6h,12h,24h,7d,30d",
+        "current": { "selected": true, "text": "24h", "value": "24h" },
+        "options": [
+          { "selected": false, "text": "1h", "value": "1h" },
+          { "selected": false, "text": "6h", "value": "6h" },
+          { "selected": false, "text": "12h", "value": "12h" },
+          { "selected": true, "text": "24h", "value": "24h" },
+          { "selected": false, "text": "7d", "value": "7d" },
+          { "selected": false, "text": "30d", "value": "30d" }
+        ],
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Cost Overview",
+      "id": 100,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 101,
+      "title": "Total Spend",
+      "description": "Total accumulated LLM cost in USD across all selected providers and models for the selected time range.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "orange", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          },
+          "unit": "currencyUSD",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[$__range]))",
+          "legendFormat": "Total Spend",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "title": "Daily Run Rate",
+      "description": "Current daily cost projection based on the cost rate over the last hour, extrapolated to 24 hours.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "orange", "value": 200 },
+              { "color": "red", "value": 500 }
+            ]
+          },
+          "unit": "currencyUSD",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h])) * 86400",
+          "legendFormat": "Daily Run Rate",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "title": "Monthly Forecast",
+      "description": "Projected monthly cost based on current daily run rate multiplied by 30 days.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1500 },
+              { "color": "orange", "value": 5000 },
+              { "color": "red", "value": 15000 }
+            ]
+          },
+          "unit": "currencyUSD",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h])) * 86400 * 30",
+          "legendFormat": "Monthly Forecast",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "title": "Cost per 1K Tokens",
+      "description": "Average cost per 1,000 tokens across all token types (prompt + completion).",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "orange", "value": 0.05 },
+              { "color": "red", "value": 0.1 }
+            ]
+          },
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(\n  sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[$__range]))\n  /\n  clamp_min(sum(increase(llm_tokens_total{provider=~\"$provider\", model=~\"$model\"}[$__range])), 1)\n) * 1000",
+          "legendFormat": "$/1K tokens",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Cost Breakdown",
+      "id": 105,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 106,
+      "title": "Cost by Provider",
+      "description": "Donut chart showing the proportion of total LLM cost attributed to each provider.",
+      "type": "piechart",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "pieType": "donut",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "displayLabels": ["percent"]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (provider) (increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[$__range]))",
+          "legendFormat": "{{provider}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 107,
+      "title": "Cost by Model (Top 10)",
+      "description": "Horizontal bar chart showing the top 10 most expensive models by accumulated cost.",
+      "type": "barchart",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "currencyUSD",
+          "custom": {
+            "axisBorderShow": false,
+            "fillOpacity": 80,
+            "gradientMode": "scheme",
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.8,
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "hidden" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "topk(10, sum by (model) (increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[$__range])))",
+          "legendFormat": "{{model}}",
+          "instant": true,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 108,
+      "title": "Input vs Output Token Cost",
+      "description": "Stacked bar showing the split between prompt (input) and completion (output) token costs over time.",
+      "type": "barchart",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "currencyUSD",
+          "custom": {
+            "axisBorderShow": false,
+            "fillOpacity": 80,
+            "gradientMode": "scheme",
+            "lineWidth": 1
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Prompt Tokens" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Completion Tokens" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "orientation": "vertical",
+        "xTickLabelRotation": -45,
+        "showValue": "auto",
+        "stacking": "normal",
+        "groupWidth": 0.7,
+        "barWidth": 0.8,
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(increase(llm_tokens_total{provider=~\"$provider\", model=~\"$model\", token_type=\"prompt\"}[1h]))",
+          "legendFormat": "Prompt Tokens"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(increase(llm_tokens_total{provider=~\"$provider\", model=~\"$model\", token_type=\"completion\"}[1h]))",
+          "legendFormat": "Completion Tokens"
+        }
+      ]
+    },
+    {
+      "id": 109,
+      "title": "Cost Trend",
+      "description": "Daily cost over time with a 7-day moving average overlay to identify cost trends and seasonal patterns.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "7d Moving Avg" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } },
+              { "id": "custom.lineWidth", "value": 3 },
+              { "id": "custom.fillOpacity", "value": 0 },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 5] } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "sum", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1d]))",
+          "legendFormat": "Daily Cost"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "avg_over_time(sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1d]))[7d:1d])",
+          "legendFormat": "7d Moving Avg"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Cost Efficiency",
+      "id": 110,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 111,
+      "title": "Cost per Request by Model",
+      "description": "Average cost per request for each model, helping identify which models are most expensive per invocation.",
+      "type": "barchart",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 17 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "custom": {
+            "axisBorderShow": false,
+            "fillOpacity": 80,
+            "gradientMode": "scheme",
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.8,
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "hidden" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (model) (increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[$__range]))\n/\nclamp_min(sum by (model) (increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__range])), 1)",
+          "legendFormat": "{{model}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 112,
+      "title": "Token Efficiency (Output/Input Ratio)",
+      "description": "Ratio of output (completion) tokens to input (prompt) tokens over time. A higher ratio indicates more content generated per token of input, suggesting efficient prompt design.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 17 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "ratio",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "short",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(llm_tokens_total{provider=~\"$provider\", model=~\"$model\", token_type=\"completion\"}[$__rate_interval]))\n/\nclamp_min(sum(rate(llm_tokens_total{provider=~\"$provider\", model=~\"$model\", token_type=\"prompt\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "Output/Input Ratio"
+        }
+      ]
+    },
+    {
+      "id": 113,
+      "title": "Cache Savings (Estimated)",
+      "description": "Estimated cost savings from cache hits, approximated by comparing current cost efficiency against baseline (first-hour) cost rates.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 17 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "light-blue", "value": null },
+              { "color": "green", "value": 10 },
+              { "color": "dark-green", "value": 100 }
+            ]
+          },
+          "unit": "currencyUSD",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "clamp_min(\n  (\n    sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__range]))\n    * \n    (\n      sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h]))\n      / clamp_min(sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[1h])), 1)\n    )\n  )\n  -\n  sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[$__range])),\n  0\n)",
+          "legendFormat": "Estimated Savings",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 114,
+      "title": "Cost Anomaly Detection",
+      "description": "Actual daily cost plotted against expected cost with 2-sigma confidence bands. Points outside the bands indicate anomalous spending.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 17 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Upper Band (2σ)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Lower Band (2σ)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Expected (7d avg)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [5, 5] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h]))",
+          "legendFormat": "Actual Cost"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "avg_over_time(sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h]))[7d:1h])",
+          "legendFormat": "Expected (7d avg)"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "avg_over_time(sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h]))[7d:1h])\n+ 2 * stddev_over_time(sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h]))[7d:1h])",
+          "legendFormat": "Upper Band (2σ)"
+        },
+        {
+          "refId": "D",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "clamp_min(\n  avg_over_time(sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h]))[7d:1h])\n  - 2 * stddev_over_time(sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h]))[7d:1h]),\n  0\n)",
+          "legendFormat": "Lower Band (2σ)"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Budget Tracking",
+      "id": 115,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 116,
+      "title": "Budget Consumption by Provider",
+      "description": "Bar gauge showing cost consumption by each provider as a percentage, useful for tracking per-team or per-provider budget allocations.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 26 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "currencyUSD",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "minVizWidth": 8,
+        "minVizHeight": 16,
+        "namePlacement": "auto",
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (provider) (increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[$__range]))",
+          "legendFormat": "{{provider}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 117,
+      "title": "Daily Cost Heatmap",
+      "description": "Heatmap showing cost distribution by hour of the day, revealing peak spending periods and usage patterns.",
+      "type": "heatmap",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 26 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "scheme", "schemeId": "Greens" },
+          "custom": {
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "calculate": true,
+        "calculation": { "xBuckets": { "mode": "size" }, "yBuckets": { "mode": "size" } },
+        "color": { "mode": "scheme", "scheme": "Greens", "fill": "dark-green", "exponent": 0.5 },
+        "yAxis": { "axisPlacement": "left" },
+        "tooltip": { "show": true, "yHistogram": false },
+        "cellGap": 2,
+        "filterValues": { "le": 1e-9 },
+        "showValue": "never"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[5m]))",
+          "legendFormat": "Cost",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 118,
+      "title": "Cost by Provider and Model",
+      "description": "Detailed table showing cost breakdown by provider and model, including request count, total tokens, total cost, and cost per request.",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 26 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 200 }
+            ]
+          },
+          "unit": "currencyUSD",
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "provider" },
+            "properties": [
+              { "id": "custom.width", "value": 100 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "model" },
+            "properties": [
+              { "id": "custom.width", "value": 150 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Value", "desc": true }],
+        "cellHeight": "sm",
+        "footer": { "show": true, "reducer": ["sum"], "countRows": false, "enablePagination": false }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (provider, model) (increase(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[$__range]))",
+          "legendFormat": "{{provider}} / {{model}}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "Value": "Total Cost ($)" }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [{ "field": "Total Cost ($)", "desc": true }]
+          }
+        }
+      ]
+    },
+    {
+      "id": 119,
+      "title": "Projected Monthly Spend vs Budget",
+      "description": "Gauge showing projected monthly spend as a percentage of the estimated monthly budget ($10,000 default). Helps teams track against budget targets.",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 26 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 150
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * (\n  sum(rate(llm_cost_usd_total{provider=~\"$provider\", model=~\"$model\"}[1h])) * 86400 * 30\n) / 10000",
+          "legendFormat": "% of Budget",
+          "instant": true
+        }
+      ]
+    }
+  ]
+}

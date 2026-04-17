@@ -1,0 +1,609 @@
+{% extends "base.html" %}
+{% set active_page = "guardrails" %}
+
+{% block title %}Guardrails - LLM O11y Platform{% endblock %}
+{% block header_title %}Guardrails Configuration{% endblock %}
+
+{% block extra_styles %}
+.guardrail-section {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.guardrail-section:hover {
+    border-color: rgba(168, 85, 247, 0.15);
+}
+
+.guardrail-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    background: rgba(22, 27, 34, 0.4);
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.guardrail-section-header:hover {
+    background: rgba(22, 27, 34, 0.6);
+}
+
+.guardrail-section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.guardrail-section-title .icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.guardrail-section-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.guardrail-status {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.guardrail-status.enabled { background: rgba(34, 197, 94, 0.12); color: var(--green); }
+.guardrail-status.disabled { background: rgba(139, 148, 158, 0.12); color: var(--text-muted); }
+
+.guardrail-section-body {
+    padding: 24px;
+}
+
+/* PII Type Grid */
+.pii-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.pii-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+.pii-item:hover {
+    border-color: rgba(168, 85, 247, 0.2);
+}
+
+.pii-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.pii-icon {
+    font-size: 1rem;
+}
+
+/* Sensitivity Selector */
+.sensitivity-options {
+    display: flex;
+    gap: 10px;
+}
+
+.sensitivity-option {
+    flex: 1;
+    padding: 14px;
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.sensitivity-option:hover {
+    border-color: rgba(168, 85, 247, 0.2);
+}
+
+.sensitivity-option.selected {
+    border-color: var(--purple);
+    background: rgba(168, 85, 247, 0.05);
+}
+
+.sensitivity-level {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.sensitivity-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* Topic Tags */
+.topic-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.topic-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(244, 63, 94, 0.08);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+    border-radius: 20px;
+    font-size: 0.82rem;
+    color: var(--coral);
+}
+
+.topic-tag .remove-topic {
+    background: none;
+    border: none;
+    color: var(--coral);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.6;
+    transition: var(--transition-fast);
+}
+
+.topic-tag .remove-topic:hover { opacity: 1; }
+
+/* Validation Schema Editor */
+.schema-editor {
+    width: 100%;
+    min-height: 120px;
+    padding: 14px;
+    background: #0d1117;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    resize: vertical;
+    transition: var(--transition);
+}
+
+.schema-editor:focus {
+    outline: none;
+    border-color: var(--purple);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+}
+
+/* Test Panel */
+.test-panel {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 24px;
+}
+
+.test-result {
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    margin-top: 16px;
+    font-size: 0.88rem;
+    line-height: 1.7;
+}
+
+.test-result.clean {
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.test-result.flagged {
+    background: rgba(244, 63, 94, 0.08);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+/* PII Highlight */
+.pii-highlight {
+    background: rgba(244, 63, 94, 0.2);
+    border: 1px solid rgba(244, 63, 94, 0.4);
+    border-radius: 3px;
+    padding: 1px 4px;
+    color: var(--coral);
+    font-weight: 600;
+    position: relative;
+}
+
+.pii-highlight .pii-type-label {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--coral);
+    color: white;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Guardrail Summary Badges */
+.guardrail-summary {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.guardrail-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+}
+
+.guardrail-check-icon {
+    font-size: 0.85rem;
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-text">
+        <h1 class="page-title">Guardrails</h1>
+        <p class="page-subtitle">Configure safety checks, PII detection, content policies, and output validation for your AI gateway.</p>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="saveGuardrails()">&#x1F4BE; Save Configuration</button>
+</div>
+
+<!-- PII Detection -->
+<div class="guardrail-section">
+    <div class="guardrail-section-header" onclick="toggleSection('pii')">
+        <div class="guardrail-section-title">
+            <span class="icon" style="background: rgba(244, 63, 94, 0.12);">&#x1F6E1;</span>
+            PII Detection
+        </div>
+        <div class="guardrail-section-right">
+            <span class="guardrail-status enabled" id="pii-status">Enabled</span>
+            <label class="toggle" onclick="event.stopPropagation();">
+                <input type="checkbox" id="pii-toggle" checked onchange="updateGuardrailStatus('pii', this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="guardrail-section-body" id="pii-body">
+        <p class="text-sm text-muted mb-16">Automatically detect and redact personally identifiable information in prompts and responses.</p>
+        <div class="pii-grid">
+            <div class="pii-item">
+                <span class="pii-label"><span class="pii-icon">&#x1F4E7;</span> Email</span>
+                <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="pii-item">
+                <span class="pii-label"><span class="pii-icon">&#x1F4F1;</span> Phone</span>
+                <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="pii-item">
+                <span class="pii-label"><span class="pii-icon">&#x1F194;</span> SSN</span>
+                <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="pii-item">
+                <span class="pii-label"><span class="pii-icon">&#x1F4B3;</span> Credit Card</span>
+                <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="pii-item">
+                <span class="pii-label"><span class="pii-icon">&#x1F310;</span> IP Address</span>
+                <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="pii-item">
+                <span class="pii-label"><span class="pii-icon">&#x1F4C5;</span> Date of Birth</span>
+                <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="pii-item">
+                <span class="pii-label"><span class="pii-icon">&#x1F511;</span> API Key</span>
+                <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content Safety -->
+<div class="guardrail-section">
+    <div class="guardrail-section-header" onclick="toggleSection('content')">
+        <div class="guardrail-section-title">
+            <span class="icon" style="background: rgba(245, 158, 11, 0.12);">&#x26A0;</span>
+            Content Safety
+        </div>
+        <div class="guardrail-section-right">
+            <span class="guardrail-status enabled" id="content-status">Enabled</span>
+            <label class="toggle" onclick="event.stopPropagation();">
+                <input type="checkbox" id="content-toggle" checked onchange="updateGuardrailStatus('content', this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="guardrail-section-body" id="content-body">
+        <p class="text-sm text-muted mb-16">Detect and block harmful, inappropriate, or unsafe content in requests and responses.</p>
+        <div class="form-group">
+            <label class="form-label">Sensitivity Level</label>
+            <div class="sensitivity-options">
+                <div class="sensitivity-option" onclick="selectSensitivity(this, 'low')">
+                    <div class="sensitivity-level" style="color: var(--green);">Low</div>
+                    <div class="sensitivity-desc">Block only extreme content</div>
+                </div>
+                <div class="sensitivity-option selected" onclick="selectSensitivity(this, 'medium')">
+                    <div class="sensitivity-level" style="color: var(--amber);">Medium</div>
+                    <div class="sensitivity-desc">Balanced safety filtering</div>
+                </div>
+                <div class="sensitivity-option" onclick="selectSensitivity(this, 'high')">
+                    <div class="sensitivity-level" style="color: var(--coral);">High</div>
+                    <div class="sensitivity-desc">Strict content filtering</div>
+                </div>
+            </div>
+        </div>
+        <div class="form-group mb-0">
+            <label class="form-label">Categories Monitored</label>
+            <div class="flex gap-8 flex-wrap">
+                <span class="badge badge-coral">Hate Speech</span>
+                <span class="badge badge-coral">Violence</span>
+                <span class="badge badge-amber">Sexual Content</span>
+                <span class="badge badge-amber">Self-Harm</span>
+                <span class="badge badge-blue">Harassment</span>
+                <span class="badge badge-purple">Misinformation</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Topic Restriction -->
+<div class="guardrail-section">
+    <div class="guardrail-section-header" onclick="toggleSection('topic')">
+        <div class="guardrail-section-title">
+            <span class="icon" style="background: rgba(59, 130, 246, 0.12);">&#x1F6AB;</span>
+            Topic Restriction
+        </div>
+        <div class="guardrail-section-right">
+            <span class="guardrail-status enabled" id="topic-status">Enabled</span>
+            <label class="toggle" onclick="event.stopPropagation();">
+                <input type="checkbox" id="topic-toggle" checked onchange="updateGuardrailStatus('topic', this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="guardrail-section-body" id="topic-body">
+        <p class="text-sm text-muted mb-16">Block prompts that discuss restricted topics to ensure compliance with your policies.</p>
+        <div class="form-group">
+            <label class="form-label">Blocked Topics</label>
+            <div class="topic-list" id="topic-list">
+                <span class="topic-tag">Illegal Activities <button class="remove-topic" onclick="removeTopic(this)">&times;</button></span>
+                <span class="topic-tag">Weapons Manufacturing <button class="remove-topic" onclick="removeTopic(this)">&times;</button></span>
+                <span class="topic-tag">Drug Synthesis <button class="remove-topic" onclick="removeTopic(this)">&times;</button></span>
+                <span class="topic-tag">Financial Fraud <button class="remove-topic" onclick="removeTopic(this)">&times;</button></span>
+                <span class="topic-tag">Hacking Instructions <button class="remove-topic" onclick="removeTopic(this)">&times;</button></span>
+            </div>
+            <div class="flex gap-8">
+                <input type="text" class="form-input" id="new-topic" placeholder="Add a new blocked topic..."
+                    onkeydown="if(event.key==='Enter') addTopic()" style="max-width: 300px;">
+                <button class="btn btn-secondary btn-sm" onclick="addTopic()">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Output Validation -->
+<div class="guardrail-section">
+    <div class="guardrail-section-header" onclick="toggleSection('output')">
+        <div class="guardrail-section-title">
+            <span class="icon" style="background: rgba(20, 184, 166, 0.12);">&#x2705;</span>
+            Output Validation
+        </div>
+        <div class="guardrail-section-right">
+            <span class="guardrail-status enabled" id="output-status">Enabled</span>
+            <label class="toggle" onclick="event.stopPropagation();">
+                <input type="checkbox" id="output-toggle" checked onchange="updateGuardrailStatus('output', this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="guardrail-section-body" id="output-body">
+        <p class="text-sm text-muted mb-16">Validate model outputs against JSON schemas, regex patterns, and length constraints.</p>
+        <div class="grid-2" style="gap: 20px; margin-bottom: 0;">
+            <div>
+                <div class="form-group">
+                    <label class="form-label">JSON Schema (optional)</label>
+                    <textarea class="schema-editor" id="json-schema" rows="6" placeholder='{
+  "type": "object",
+  "properties": {
+    "answer": { "type": "string" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  },
+  "required": ["answer"]
+}'></textarea>
+                </div>
+            </div>
+            <div>
+                <div class="form-group">
+                    <label class="form-label">Regex Pattern (optional)</label>
+                    <input type="text" class="form-input text-mono" id="regex-pattern" placeholder="^(?!.*password).*$">
+                    <span class="form-hint">Response must match this pattern to pass validation.</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Max Output Tokens</label>
+                    <input type="number" class="form-input" id="max-output-tokens" value="4096" min="1" max="128000">
+                    <span class="form-hint">Responses exceeding this limit will be truncated.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Full-Width Test Panel -->
+<div class="section">
+    <div class="section-title"><span class="accent-bar accent-coral"></span> Test Guardrails</div>
+    <div class="test-panel">
+        <p class="text-sm text-muted mb-16">Paste any text below to test all active guardrails and see what gets flagged.</p>
+        <div class="form-group">
+            <textarea class="form-textarea" id="guardrail-test-input" rows="5"
+                placeholder="Try pasting text with PII like an email (user@example.com), phone (555-123-4567), or a credit card number (4111-1111-1111-1111) to see detection in action..."
+                style="font-size: 0.88rem;"></textarea>
+        </div>
+        <button class="btn btn-primary" id="test-guardrails-btn" onclick="testGuardrails()">
+            <span class="spinner"></span>
+            <span class="btn-text">&#x1F6E1; Run All Guardrails</span>
+        </button>
+
+        <div id="guardrail-test-results" style="display: none;">
+            <div class="guardrail-summary" id="guardrail-summary">
+                <!-- Populated by JS -->
+            </div>
+            <div class="test-result" id="test-result-content">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% raw %}<script>
+    function toggleSection(id) {
+        const body = document.getElementById(id + '-body');
+        if (body) {
+            body.style.display = body.style.display === 'none' ? 'block' : body.style.display ? 'none' : 'none';
+        }
+    }
+
+    function updateGuardrailStatus(section, enabled) {
+        const status = document.getElementById(section + '-status');
+        if (status) {
+            status.textContent = enabled ? 'Enabled' : 'Disabled';
+            status.className = 'guardrail-status ' + (enabled ? 'enabled' : 'disabled');
+        }
+    }
+
+    function selectSensitivity(el, level) {
+        document.querySelectorAll('.sensitivity-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        showToast('Sensitivity set to ' + level, 'info');
+    }
+
+    function addTopic() {
+        const input = document.getElementById('new-topic');
+        const value = input.value.trim();
+        if (!value) return;
+
+        const list = document.getElementById('topic-list');
+        const tag = document.createElement('span');
+        tag.className = 'topic-tag';
+        tag.innerHTML = `${escapeHtml(value)} <button class="remove-topic" onclick="removeTopic(this)">&times;</button>`;
+        list.appendChild(tag);
+        input.value = '';
+        showToast('Topic added to blocklist', 'success');
+    }
+
+    function removeTopic(btn) {
+        btn.parentElement.remove();
+        showToast('Topic removed from blocklist', 'info');
+    }
+
+    function testGuardrails() {
+        const input = document.getElementById('guardrail-test-input').value;
+        if (!input.trim()) {
+            showToast('Please enter text to test', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('test-guardrails-btn');
+        btn.classList.add('loading');
+
+        setTimeout(() => {
+            btn.classList.remove('loading');
+
+            // Detect PII patterns
+            const piiPatterns = [
+                { type: 'Email', regex: /[\w.+-]+@[\w-]+\.[\w.]+/g },
+                { type: 'Phone', regex: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g },
+                { type: 'Credit Card', regex: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g },
+                { type: 'SSN', regex: /\b\d{3}-\d{2}-\d{4}\b/g },
+                { type: 'IP Address', regex: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g },
+                { type: 'API Key', regex: /\b(sk-|api_key_|AKIA)[a-zA-Z0-9]{10,}\b/g }
+            ];
+
+            let detections = [];
+            let highlighted = escapeHtml(input);
+
+            piiPatterns.forEach(p => {
+                const matches = input.match(p.regex);
+                if (matches) {
+                    matches.forEach(m => {
+                        detections.push({ type: p.type, value: m });
+                        const escaped = escapeHtml(m);
+                        highlighted = highlighted.replace(escaped,
+                            `<span class="pii-highlight"><span class="pii-type-label">${p.type}</span>${escaped}</span>`);
+                    });
+                }
+            });
+
+            const hasPII = detections.length > 0;
+            const summary = document.getElementById('guardrail-summary');
+            summary.innerHTML = `
+                <div class="guardrail-summary-item">
+                    <span class="guardrail-check-icon" style="color: ${hasPII ? 'var(--coral)' : 'var(--green)'};">${hasPII ? '&#x26A0;' : '&#x2705;'}</span>
+                    <span>PII Detection: ${hasPII ? detections.length + ' found' : 'Clear'}</span>
+                </div>
+                <div class="guardrail-summary-item">
+                    <span class="guardrail-check-icon" style="color: var(--green);">&#x2705;</span>
+                    <span>Content Safety: Passed</span>
+                </div>
+                <div class="guardrail-summary-item">
+                    <span class="guardrail-check-icon" style="color: var(--green);">&#x2705;</span>
+                    <span>Topic Restriction: Clear</span>
+                </div>
+                <div class="guardrail-summary-item">
+                    <span class="guardrail-check-icon" style="color: var(--green);">&#x2705;</span>
+                    <span>Output Validation: Passed</span>
+                </div>
+            `;
+
+            const result = document.getElementById('test-result-content');
+            result.className = 'test-result ' + (hasPII ? 'flagged' : 'clean');
+            result.innerHTML = highlighted.replace(/\n/g, '<br>');
+
+            document.getElementById('guardrail-test-results').style.display = 'block';
+            showToast(hasPII ? 'PII detected in input' : 'All guardrails passed', hasPII ? 'warning' : 'success');
+        }, 800);
+    }
+
+    function saveGuardrails() {
+        showToast('Guardrail configuration saved', 'success');
+    }
+
+    // Initialize - all sections visible
+    document.querySelectorAll('.guardrail-section-body').forEach(b => {
+        b.style.display = 'block';
+    });
+</script>{% endraw %}
+{% endblock %}

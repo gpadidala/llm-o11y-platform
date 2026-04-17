@@ -1,0 +1,688 @@
+{% extends "base.html" %}
+{% set active_page = "playground" %}
+
+{% block title %}Playground - LLM O11y Platform{% endblock %}
+{% block header_title %}AI Playground{% endblock %}
+
+{% block extra_styles %}
+.playground-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    min-height: calc(100vh - var(--header-height) - 160px);
+}
+
+.playground-layout.compare-mode {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* Input Panel */
+.input-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.model-selector-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.prompt-area {
+    position: relative;
+}
+
+.prompt-area textarea {
+    width: 100%;
+    padding: 14px 16px;
+    background: #0d1117;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85rem;
+    line-height: 1.65;
+    resize: vertical;
+    transition: var(--transition);
+}
+
+.prompt-area textarea:focus {
+    outline: none;
+    border-color: var(--purple);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+}
+
+.prompt-area textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.prompt-area .line-numbers {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 36px;
+    background: rgba(13, 17, 23, 0.5);
+    border-right: 1px solid var(--border-color);
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    padding-top: 14px;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    line-height: 1.65;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.prompt-area.with-lines textarea {
+    padding-left: 48px;
+}
+
+.system-prompt-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Parameter Controls */
+.param-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.param-label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    min-width: 100px;
+}
+
+.param-slider {
+    flex: 1;
+}
+
+.param-value {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 48px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Send Button */
+.send-btn {
+    background: var(--gradient-purple-blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 16px 32px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 16px rgba(168, 85, 247, 0.3);
+    width: 100%;
+}
+
+.send-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);
+}
+
+.send-btn:active {
+    transform: translateY(0);
+}
+
+.send-btn .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+}
+
+.send-btn.loading .spinner { display: inline-block; }
+.send-btn.loading .btn-text { opacity: 0.7; }
+
+/* Output Panel */
+.output-panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(22, 27, 34, 0.5);
+}
+
+.output-header-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.output-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.output-body {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    min-height: 300px;
+}
+
+.output-body .response-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.output-body .placeholder-text {
+    color: var(--text-muted);
+    text-align: center;
+    padding-top: 80px;
+}
+
+.output-body .placeholder-text svg {
+    display: block;
+    margin: 0 auto 16px;
+    opacity: 0.3;
+}
+
+.output-footer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-color);
+    background: rgba(22, 27, 34, 0.5);
+    font-size: 0.78rem;
+    flex-wrap: wrap;
+}
+
+.output-metric {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+}
+
+.output-metric-value {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Compare Mode */
+.compare-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+}
+
+.compare-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.compare-metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    text-align: center;
+}
+
+.compare-metric-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.compare-metric-value {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+/* History Sidebar */
+.history-toggle-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 50;
+}
+
+.history-drawer {
+    position: fixed;
+    top: var(--header-height);
+    right: 0;
+    width: 300px;
+    height: calc(100vh - var(--header-height));
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-color);
+    z-index: 100;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+}
+
+.history-drawer.open {
+    transform: translateX(0);
+}
+
+.history-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+}
+
+.history-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.history-item:hover {
+    background: rgba(168, 85, 247, 0.05);
+}
+
+.history-item-model {
+    font-size: 0.72rem;
+    color: var(--purple);
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.history-item-text {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-item-meta {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+@media (max-width: 1024px) {
+    .playground-layout {
+        grid-template-columns: 1fr;
+    }
+    .playground-layout.compare-mode {
+        grid-template-columns: 1fr;
+    }
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-text">
+        <h1 class="page-title">AI Playground</h1>
+        <p class="page-subtitle">Test prompts, compare models, and iterate on your AI workflows.</p>
+    </div>
+    <div class="flex gap-8">
+        <div class="compare-toggle">
+            <label class="toggle">
+                <input type="checkbox" id="compare-mode-toggle" onchange="toggleCompareMode(this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="text-sm text-muted">Compare Mode</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="toggleHistory()">&#x1F4DC; History</button>
+    </div>
+</div>
+
+<div class="playground-layout" id="playground-layout">
+    <!-- Input Panel -->
+    <div class="input-panel">
+        <div class="card" style="padding: 20px;">
+            <div class="model-selector-row mb-16">
+                <div class="form-group mb-0">
+                    <label class="form-label">Provider</label>
+                    <select class="form-select" id="pg-provider" onchange="updateModelOptions()">
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="google">Google</option>
+                        <option value="azure">Azure OpenAI</option>
+                        <option value="cohere">Cohere</option>
+                    </select>
+                </div>
+                <div class="form-group mb-0">
+                    <label class="form-label">Model</label>
+                    <select class="form-select" id="pg-model">
+                        <option value="gpt-4o">gpt-4o</option>
+                        <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        <option value="gpt-4-turbo">gpt-4-turbo</option>
+                        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="system-prompt-label">
+                    <label class="form-label mb-0">System Prompt</label>
+                    <span class="text-xs text-muted">Optional</span>
+                </div>
+                <textarea class="form-textarea" id="pg-system" rows="3" placeholder="You are a helpful assistant..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">User Message</label>
+                <div class="prompt-area with-lines">
+                    <div class="line-numbers" id="pg-line-nums">
+                        <span>1</span>
+                    </div>
+                    <textarea class="form-textarea" id="pg-message" rows="8" placeholder="Type your message here..."
+                        oninput="updateLineNumbers(this)"></textarea>
+                </div>
+            </div>
+
+            <!-- Parameters -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <div class="flex items-center justify-between mb-12">
+                    <span class="text-sm font-semibold">Parameters</span>
+                    <button class="btn btn-ghost btn-sm" onclick="resetParams()">Reset</button>
+                </div>
+                <div class="param-row">
+                    <span class="param-label">Temperature</span>
+                    <input type="range" class="param-slider" id="pg-temp" min="0" max="2" step="0.1" value="0.7"
+                        oninput="document.getElementById('pg-temp-val').textContent = this.value">
+                    <span class="param-value" id="pg-temp-val">0.7</span>
+                </div>
+                <div class="param-row">
+                    <span class="param-label">Max Tokens</span>
+                    <input type="range" class="param-slider" id="pg-tokens" min="100" max="4096" step="100" value="1024"
+                        oninput="document.getElementById('pg-tokens-val').textContent = this.value">
+                    <span class="param-value" id="pg-tokens-val">1024</span>
+                </div>
+                <div class="param-row">
+                    <span class="param-label">Top P</span>
+                    <input type="range" class="param-slider" id="pg-topp" min="0" max="1" step="0.05" value="1"
+                        oninput="document.getElementById('pg-topp-val').textContent = this.value">
+                    <span class="param-value" id="pg-topp-val">1</span>
+                </div>
+            </div>
+
+            <button class="send-btn mt-16" id="pg-send" onclick="sendPlayground()">
+                <span class="spinner"></span>
+                <span class="btn-text">&#x1F680; Send Request</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Output Panel A -->
+    <div class="output-panel" id="output-panel-a">
+        <div class="output-header">
+            <span class="output-header-title">
+                <span style="color: var(--purple);">&#x2728;</span> Response
+            </span>
+            <div class="output-actions">
+                <button class="btn btn-ghost btn-sm" onclick="copyOutput('a')" title="Copy">&#x1F4CB;</button>
+                <button class="btn btn-ghost btn-sm" onclick="saveOutput('a')" title="Save">&#x1F4BE;</button>
+            </div>
+        </div>
+        <div class="output-body" id="output-body-a">
+            <div class="placeholder-text">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <rect x="6" y="6" width="36" height="36" rx="8" stroke="var(--text-muted)" stroke-width="2"/>
+                    <path d="M16 24h16M24 16v16" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">No response yet</div>
+                <div>Configure your prompt and hit Send to get a response from the AI model.</div>
+            </div>
+        </div>
+        <div class="output-footer" id="output-footer-a" style="display: none;">
+            <div class="output-metric">Prompt: <span class="output-metric-value" id="metric-prompt-a">--</span></div>
+            <div class="output-metric">Completion: <span class="output-metric-value" id="metric-completion-a">--</span></div>
+            <div class="output-metric">Total: <span class="output-metric-value" id="metric-total-a">--</span></div>
+            <div class="output-metric">Cost: <span class="output-metric-value" id="metric-cost-a">--</span></div>
+            <div class="output-metric">Latency: <span class="output-metric-value" id="metric-latency-a">--</span></div>
+        </div>
+    </div>
+
+    <!-- Output Panel B (Compare Mode) -->
+    <div class="output-panel hidden" id="output-panel-b">
+        <div class="output-header">
+            <span class="output-header-title">
+                <span style="color: var(--blue);">&#x2728;</span> Response B
+            </span>
+            <div class="flex gap-8 items-center">
+                <select class="form-select" style="width: auto; padding: 4px 28px 4px 8px; font-size: 0.78rem;" id="compare-model-b">
+                    <option value="claude-3.5-sonnet">claude-3.5-sonnet</option>
+                    <option value="gemini-pro">gemini-pro</option>
+                    <option value="gpt-4o-mini">gpt-4o-mini</option>
+                </select>
+                <div class="output-actions">
+                    <button class="btn btn-ghost btn-sm" onclick="copyOutput('b')">&#x1F4CB;</button>
+                </div>
+            </div>
+        </div>
+        <div class="output-body" id="output-body-b">
+            <div class="placeholder-text">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <rect x="6" y="6" width="36" height="36" rx="8" stroke="var(--text-muted)" stroke-width="2"/>
+                    <path d="M16 20h16M16 28h10" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">Compare Mode</div>
+                <div>Select a second model above and send a request to compare outputs side-by-side.</div>
+            </div>
+        </div>
+        <div class="output-footer" id="output-footer-b" style="display: none;">
+            <div class="output-metric">Prompt: <span class="output-metric-value" id="metric-prompt-b">--</span></div>
+            <div class="output-metric">Completion: <span class="output-metric-value" id="metric-completion-b">--</span></div>
+            <div class="output-metric">Total: <span class="output-metric-value" id="metric-total-b">--</span></div>
+            <div class="output-metric">Cost: <span class="output-metric-value" id="metric-cost-b">--</span></div>
+            <div class="output-metric">Latency: <span class="output-metric-value" id="metric-latency-b">--</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- Compare Metrics (hidden until compare results available) -->
+<div class="compare-metrics hidden" id="compare-metrics">
+    <div class="compare-metric-card">
+        <div class="compare-metric-label">Speed Winner</div>
+        <div class="compare-metric-value" id="compare-speed" style="color: var(--green);">--</div>
+    </div>
+    <div class="compare-metric-card">
+        <div class="compare-metric-label">Cost Winner</div>
+        <div class="compare-metric-value" id="compare-cost" style="color: var(--teal);">--</div>
+    </div>
+    <div class="compare-metric-card">
+        <div class="compare-metric-label">Tokens Used</div>
+        <div class="compare-metric-value" id="compare-tokens" style="color: var(--purple);">--</div>
+    </div>
+</div>
+
+<!-- History Drawer -->
+<div class="history-drawer" id="history-drawer">
+    <div class="history-header">
+        <span class="font-semibold">Session History</span>
+        <button class="btn btn-ghost btn-sm" onclick="toggleHistory()">&#x2716;</button>
+    </div>
+    <div id="history-list">
+        <div class="history-item" onclick="loadHistoryItem(0)">
+            <div class="history-item-model">gpt-4o &middot; OpenAI</div>
+            <div class="history-item-text">Explain the concept of prompt engineering...</div>
+            <div class="history-item-meta">1,240 tokens &middot; 0.84s &middot; 5m ago</div>
+        </div>
+        <div class="history-item" onclick="loadHistoryItem(1)">
+            <div class="history-item-model">claude-3.5-sonnet &middot; Anthropic</div>
+            <div class="history-item-text">Write a Python function that implements...</div>
+            <div class="history-item-meta">2,100 tokens &middot; 1.21s &middot; 12m ago</div>
+        </div>
+        <div class="history-item" onclick="loadHistoryItem(2)">
+            <div class="history-item-model">gpt-4o-mini &middot; OpenAI</div>
+            <div class="history-item-text">Summarize the key differences between...</div>
+            <div class="history-item-meta">680 tokens &middot; 0.42s &middot; 25m ago</div>
+        </div>
+        <div class="history-item" onclick="loadHistoryItem(3)">
+            <div class="history-item-model">gemini-pro &middot; Google</div>
+            <div class="history-item-text">Generate test cases for the authentication...</div>
+            <div class="history-item-meta">1,890 tokens &middot; 0.92s &middot; 1h ago</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% raw %}<script>
+    function toggleCompareMode(enabled) {
+        const layout = document.getElementById('playground-layout');
+        const panelB = document.getElementById('output-panel-b');
+        if (enabled) {
+            layout.classList.add('compare-mode');
+            panelB.classList.remove('hidden');
+        } else {
+            layout.classList.remove('compare-mode');
+            panelB.classList.add('hidden');
+            document.getElementById('compare-metrics').classList.add('hidden');
+        }
+    }
+
+    function toggleHistory() {
+        document.getElementById('history-drawer').classList.toggle('open');
+    }
+
+    function updateModelOptions() {
+        const provider = document.getElementById('pg-provider').value;
+        const modelSel = document.getElementById('pg-model');
+        const models = {
+            openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+            anthropic: ['claude-3.5-sonnet', 'claude-3-opus', 'claude-3-haiku'],
+            google: ['gemini-pro', 'gemini-ultra', 'gemini-flash'],
+            azure: ['gpt-4o (azure)', 'gpt-4 (azure)', 'gpt-35-turbo (azure)'],
+            cohere: ['command-r-plus', 'command-r', 'command-light']
+        };
+        modelSel.innerHTML = (models[provider] || []).map(m => `<option value="${m}">${m}</option>`).join('');
+    }
+
+    function updateLineNumbers(textarea) {
+        const lines = textarea.value.split('\n').length;
+        const container = document.getElementById('pg-line-nums');
+        container.innerHTML = '';
+        for (let i = 1; i <= Math.max(lines, 1); i++) {
+            const span = document.createElement('span');
+            span.textContent = i;
+            container.appendChild(span);
+        }
+    }
+
+    function resetParams() {
+        document.getElementById('pg-temp').value = 0.7;
+        document.getElementById('pg-temp-val').textContent = '0.7';
+        document.getElementById('pg-tokens').value = 1024;
+        document.getElementById('pg-tokens-val').textContent = '1024';
+        document.getElementById('pg-topp').value = 1;
+        document.getElementById('pg-topp-val').textContent = '1';
+    }
+
+    async function sendPlayground() {
+        const btn = document.getElementById('pg-send');
+        const message = document.getElementById('pg-message').value.trim();
+        if (!message) {
+            showToast('Please enter a message', 'warning');
+            return;
+        }
+
+        btn.classList.add('loading');
+
+        const payload = {
+            provider: document.getElementById('pg-provider').value,
+            model: document.getElementById('pg-model').value,
+            system_prompt: document.getElementById('pg-system').value,
+            message: message,
+            temperature: parseFloat(document.getElementById('pg-temp').value),
+            max_tokens: parseInt(document.getElementById('pg-tokens').value),
+            top_p: parseFloat(document.getElementById('pg-topp').value)
+        };
+
+        try {
+            const resp = await fetch('/api/playground', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+
+            document.getElementById('output-body-a').innerHTML = `<div class="response-text">${escapeHtml(data.response || data.message || 'No response content')}</div>`;
+            document.getElementById('output-footer-a').style.display = 'flex';
+            document.getElementById('metric-prompt-a').textContent = (data.prompt_tokens || 0) + ' tok';
+            document.getElementById('metric-completion-a').textContent = (data.completion_tokens || 0) + ' tok';
+            document.getElementById('metric-total-a').textContent = (data.total_tokens || 0) + ' tok';
+            document.getElementById('metric-cost-a').textContent = '$' + (data.cost || 0).toFixed(4);
+            document.getElementById('metric-latency-a').textContent = (data.latency || 0).toFixed(2) + 's';
+            showToast('Response received', 'success');
+        } catch(e) {
+            // Show simulated response for demo
+            const simulated = "This is a simulated response from the AI model. In production, this would contain the actual model output based on your prompt.\n\nThe playground allows you to:\n1. Test different models and providers\n2. Adjust parameters like temperature and max tokens\n3. Compare outputs side-by-side\n4. Track token usage and costs";
+            document.getElementById('output-body-a').innerHTML = `<div class="response-text">${simulated}</div>`;
+            document.getElementById('output-footer-a').style.display = 'flex';
+            document.getElementById('metric-prompt-a').textContent = '48 tok';
+            document.getElementById('metric-completion-a').textContent = '156 tok';
+            document.getElementById('metric-total-a').textContent = '204 tok';
+            document.getElementById('metric-cost-a').textContent = '$0.0031';
+            document.getElementById('metric-latency-a').textContent = '0.84s';
+        }
+
+        btn.classList.remove('loading');
+    }
+
+    function copyOutput(panel) {
+        const body = document.getElementById('output-body-' + panel);
+        const text = body.textContent || body.innerText;
+        navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard', 'success'));
+    }
+
+    function saveOutput(panel) {
+        showToast('Output saved to history', 'info');
+    }
+
+    function loadHistoryItem(index) {
+        showToast('Loaded history item', 'info');
+        toggleHistory();
+    }
+</script>{% endraw %}
+{% endblock %}

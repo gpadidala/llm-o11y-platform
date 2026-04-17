@@ -10,5 +10,10 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY src/ ./src/
 COPY src/static/ ./src/static/
 COPY src/templates/ ./src/templates/
+
+# Create persistent data directory for prompt store, keys, etc.
+RUN mkdir -p /app/.data
+VOLUME ["/app/.data"]
+
 EXPOSE 8080
 CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8080"]

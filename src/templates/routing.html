@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% set active_page = "routing" %}
+
+{% block title %}Routing - LLM O11y Platform{% endblock %}
+{% block header_title %}Routing Configuration{% endblock %}
+
+{% block extra_styles %}
+/* Strategy Cards */
+.strategy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+}
+
+.strategy-card {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.strategy-card:hover {
+    border-color: rgba(168, 85, 247, 0.3);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.strategy-card.selected {
+    border-color: var(--purple);
+    background: rgba(168, 85, 247, 0.06);
+}
+
+.strategy-card.selected::after {
+    content: '&#x2713;';
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    color: var(--purple);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.strategy-icon {
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.strategy-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.strategy-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* Target Configuration */
+.target-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.target-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+.target-item:hover {
+    border-color: rgba(168, 85, 247, 0.2);
+}
+
+.target-order {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--gradient-purple-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+}
+
+.target-selectors {
+    display: flex;
+    gap: 10px;
+    flex: 1;
+}
+
+.target-selectors .form-select {
+    padding: 7px 30px 7px 10px;
+    font-size: 0.82rem;
+}
+
+.target-weight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 180px;
+}
+
+.target-weight-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.target-weight-value {
+    font-size: 0.82rem;
+    font-weight: 700;
+    min-width: 32px;
+    text-align: right;
+}
+
+.target-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 4px;
+    transition: var(--transition-fast);
+}
+
+.target-remove:hover { color: var(--coral); }
+
+/* Circuit Breaker */
+.circuit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.circuit-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    transition: var(--transition);
+}
+
+.circuit-card:hover {
+    border-color: rgba(168, 85, 247, 0.15);
+}
+
+.circuit-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.circuit-provider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.88rem;
+}
+
+.circuit-state {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.circuit-state.closed { background: rgba(34, 197, 94, 0.12); color: var(--green); }
+.circuit-state.open { background: rgba(244, 63, 94, 0.12); color: var(--coral); }
+.circuit-state.half-open { background: rgba(245, 158, 11, 0.12); color: var(--amber); }
+
+.circuit-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.circuit-stat-value {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Request Distribution Chart */
+.dist-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    height: 120px;
+    padding-top: 10px;
+}
+
+.dist-bar {
+    flex: 1;
+    border-radius: 4px 4px 0 0;
+    position: relative;
+    transition: height 0.5s ease;
+    min-width: 30px;
+}
+
+.dist-bar-label {
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.dist-bar-value {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+/* Retry Config */
+.retry-config {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+@media (max-width: 768px) {
+    .strategy-grid { grid-template-columns: repeat(2, 1fr); }
+    .retry-config { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-text">
+        <h1 class="page-title">Routing Configuration</h1>
+        <p class="page-subtitle">Configure request routing strategies, load balancing, and failover across your AI providers.</p>
+    </div>
+    <button class="btn btn-primary" onclick="saveRouting()">&#x1F4BE; Save Configuration</button>
+</div>
+
+<!-- Strategy Selector -->
+<div class="section">
+    <div class="section-title"><span class="accent-bar accent-purple"></span> Routing Strategy</div>
+    <div class="strategy-grid">
+        <div class="strategy-card" onclick="selectStrategy(this, 'single')">
+            <span class="strategy-icon">&#x1F3AF;</span>
+            <div class="strategy-name">Single</div>
+            <div class="strategy-desc">Route all traffic to one provider/model</div>
+        </div>
+        <div class="strategy-card selected" onclick="selectStrategy(this, 'fallback')">
+            <span class="strategy-icon">&#x1F6E1;</span>
+            <div class="strategy-name">Fallback</div>
+            <div class="strategy-desc">Try providers in priority order on failure</div>
+        </div>
+        <div class="strategy-card" onclick="selectStrategy(this, 'load-balance')">
+            <span class="strategy-icon">&#x2696;</span>
+            <div class="strategy-name">Load Balance</div>
+            <div class="strategy-desc">Distribute requests by weight across providers</div>
+        </div>
+        <div class="strategy-card" onclick="selectStrategy(this, 'cost-optimized')">
+            <span class="strategy-icon">&#x1F4B0;</span>
+            <div class="strategy-name">Cost Optimized</div>
+            <div class="strategy-desc">Route to the cheapest available provider</div>
+        </div>
+        <div class="strategy-card" onclick="selectStrategy(this, 'latency-optimized')">
+            <span class="strategy-icon">&#x26A1;</span>
+            <div class="strategy-name">Latency Optimized</div>
+            <div class="strategy-desc">Route to the fastest responding provider</div>
+        </div>
+        <div class="strategy-card" onclick="selectStrategy(this, 'canary')">
+            <span class="strategy-icon">&#x1F426;</span>
+            <div class="strategy-name">Canary</div>
+            <div class="strategy-desc">Send a small % of traffic to a new provider</div>
+        </div>
+    </div>
+</div>
+
+<!-- Target Configuration -->
+<div class="section">
+    <div class="flex items-center justify-between mb-16">
+        <div class="section-title mb-0"><span class="accent-bar accent-blue"></span> Route Targets</div>
+        <button class="btn btn-secondary btn-sm" onclick="addTarget()">&#x2795; Add Target</button>
+    </div>
+    <div class="target-list" id="target-list">
+        <div class="target-item">
+            <span class="target-order">1</span>
+            <div class="target-selectors">
+                <select class="form-select" style="min-width: 140px;">
+                    <option selected>OpenAI</option>
+                    <option>Anthropic</option>
+                    <option>Google</option>
+                    <option>Azure</option>
+                    <option>Cohere</option>
+                </select>
+                <select class="form-select" style="min-width: 160px;">
+                    <option selected>gpt-4o</option>
+                    <option>gpt-4o-mini</option>
+                    <option>gpt-4-turbo</option>
+                </select>
+            </div>
+            <div class="target-weight">
+                <span class="target-weight-label">Weight</span>
+                <input type="range" min="0" max="100" value="60" style="flex: 1;"
+                    oninput="this.nextElementSibling.textContent = this.value + '%'">
+                <span class="target-weight-value">60%</span>
+            </div>
+            <button class="target-remove" onclick="removeTarget(this)" title="Remove">&times;</button>
+        </div>
+        <div class="target-item">
+            <span class="target-order">2</span>
+            <div class="target-selectors">
+                <select class="form-select" style="min-width: 140px;">
+                    <option>OpenAI</option>
+                    <option selected>Anthropic</option>
+                    <option>Google</option>
+                    <option>Azure</option>
+                    <option>Cohere</option>
+                </select>
+                <select class="form-select" style="min-width: 160px;">
+                    <option selected>claude-3.5-sonnet</option>
+                    <option>claude-3-opus</option>
+                    <option>claude-3-haiku</option>
+                </select>
+            </div>
+            <div class="target-weight">
+                <span class="target-weight-label">Weight</span>
+                <input type="range" min="0" max="100" value="30" style="flex: 1;"
+                    oninput="this.nextElementSibling.textContent = this.value + '%'">
+                <span class="target-weight-value">30%</span>
+            </div>
+            <button class="target-remove" onclick="removeTarget(this)" title="Remove">&times;</button>
+        </div>
+        <div class="target-item">
+            <span class="target-order">3</span>
+            <div class="target-selectors">
+                <select class="form-select" style="min-width: 140px;">
+                    <option>OpenAI</option>
+                    <option>Anthropic</option>
+                    <option selected>Google</option>
+                    <option>Azure</option>
+                    <option>Cohere</option>
+                </select>
+                <select class="form-select" style="min-width: 160px;">
+                    <option selected>gemini-pro</option>
+                    <option>gemini-ultra</option>
+                    <option>gemini-flash</option>
+                </select>
+            </div>
+            <div class="target-weight">
+                <span class="target-weight-label">Weight</span>
+                <input type="range" min="0" max="100" value="10" style="flex: 1;"
+                    oninput="this.nextElementSibling.textContent = this.value + '%'">
+                <span class="target-weight-value">10%</span>
+            </div>
+            <button class="target-remove" onclick="removeTarget(this)" title="Remove">&times;</button>
+        </div>
+    </div>
+</div>
+
+<!-- Circuit Breaker Status + Request Distribution -->
+<div class="grid-2">
+    <!-- Circuit Breakers -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">&#x26A1; Circuit Breaker Status</span>
+        </div>
+        <div class="circuit-grid">
+            <div class="circuit-card">
+                <div class="circuit-header">
+                    <span class="circuit-provider"><span class="status-dot healthy"></span> OpenAI</span>
+                    <span class="circuit-state closed">Closed</span>
+                </div>
+                <div class="circuit-stats">
+                    <span>Failures: <span class="circuit-stat-value">0</span></span>
+                    <span>Reqs: <span class="circuit-stat-value">14.2k</span></span>
+                </div>
+            </div>
+            <div class="circuit-card">
+                <div class="circuit-header">
+                    <span class="circuit-provider"><span class="status-dot healthy"></span> Anthropic</span>
+                    <span class="circuit-state closed">Closed</span>
+                </div>
+                <div class="circuit-stats">
+                    <span>Failures: <span class="circuit-stat-value">0</span></span>
+                    <span>Reqs: <span class="circuit-stat-value">8.6k</span></span>
+                </div>
+            </div>
+            <div class="circuit-card">
+                <div class="circuit-header">
+                    <span class="circuit-provider"><span class="status-dot unknown"></span> Azure</span>
+                    <span class="circuit-state half-open">Half-Open</span>
+                </div>
+                <div class="circuit-stats">
+                    <span>Failures: <span class="circuit-stat-value" style="color: var(--amber);">3</span></span>
+                    <span>Reqs: <span class="circuit-stat-value">2.1k</span></span>
+                </div>
+            </div>
+            <div class="circuit-card">
+                <div class="circuit-header">
+                    <span class="circuit-provider"><span class="status-dot healthy"></span> Google</span>
+                    <span class="circuit-state closed">Closed</span>
+                </div>
+                <div class="circuit-stats">
+                    <span>Failures: <span class="circuit-stat-value">0</span></span>
+                    <span>Reqs: <span class="circuit-stat-value">4.3k</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Request Distribution -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">&#x1F4CA; Request Distribution</span>
+            <span class="text-sm text-muted">Last 24h</span>
+        </div>
+        <div class="dist-chart" style="margin-bottom: 30px;">
+            <div class="dist-bar" style="height: 90%; background: var(--gradient-purple-blue);">
+                <span class="dist-bar-value">58%</span>
+                <span class="dist-bar-label">OpenAI</span>
+            </div>
+            <div class="dist-bar" style="height: 55%; background: var(--gradient-blue-cyan);">
+                <span class="dist-bar-value">28%</span>
+                <span class="dist-bar-label">Anthropic</span>
+            </div>
+            <div class="dist-bar" style="height: 15%; background: var(--gradient-teal-green);">
+                <span class="dist-bar-value">7%</span>
+                <span class="dist-bar-label">Azure</span>
+            </div>
+            <div class="dist-bar" style="height: 12%; background: var(--gradient-amber-orange);">
+                <span class="dist-bar-value">5%</span>
+                <span class="dist-bar-label">Google</span>
+            </div>
+            <div class="dist-bar" style="height: 5%; background: var(--border-color);">
+                <span class="dist-bar-value">2%</span>
+                <span class="dist-bar-label">Other</span>
+            </div>
+        </div>
+        <!-- Success Rate Chart -->
+        <div style="margin-top: 40px;">
+            <div class="text-sm font-semibold mb-12">Success Rates by Provider</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="flex items-center gap-10">
+                    <span style="min-width: 70px; font-size: 0.82rem;">OpenAI</span>
+                    <div class="progress-bar" style="flex: 1;">
+                        <div class="progress-fill green" style="width: 99.8%;"></div>
+                    </div>
+                    <span style="min-width: 40px; font-size: 0.82rem; font-weight: 700; text-align: right;">99.8%</span>
+                </div>
+                <div class="flex items-center gap-10">
+                    <span style="min-width: 70px; font-size: 0.82rem;">Anthropic</span>
+                    <div class="progress-bar" style="flex: 1;">
+                        <div class="progress-fill green" style="width: 99.5%;"></div>
+                    </div>
+                    <span style="min-width: 40px; font-size: 0.82rem; font-weight: 700; text-align: right;">99.5%</span>
+                </div>
+                <div class="flex items-center gap-10">
+                    <span style="min-width: 70px; font-size: 0.82rem;">Azure</span>
+                    <div class="progress-bar" style="flex: 1;">
+                        <div class="progress-fill amber" style="width: 97.2%;"></div>
+                    </div>
+                    <span style="min-width: 40px; font-size: 0.82rem; font-weight: 700; text-align: right; color: var(--amber);">97.2%</span>
+                </div>
+                <div class="flex items-center gap-10">
+                    <span style="min-width: 70px; font-size: 0.82rem;">Google</span>
+                    <div class="progress-bar" style="flex: 1;">
+                        <div class="progress-fill green" style="width: 99.9%;"></div>
+                    </div>
+                    <span style="min-width: 40px; font-size: 0.82rem; font-weight: 700; text-align: right;">99.9%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Retry Configuration -->
+<div class="section mt-24">
+    <div class="section-title"><span class="accent-bar accent-amber"></span> Retry Configuration</div>
+    <div class="card">
+        <div class="retry-config">
+            <div class="form-group mb-0">
+                <label class="form-label">Max Retries</label>
+                <input type="number" class="form-input" id="max-retries" value="3" min="0" max="10">
+                <span class="form-hint">Number of retry attempts on failure</span>
+            </div>
+            <div class="form-group mb-0">
+                <label class="form-label">Backoff Strategy</label>
+                <select class="form-select" id="backoff-strategy">
+                    <option value="exponential" selected>Exponential Backoff</option>
+                    <option value="linear">Linear Backoff</option>
+                    <option value="fixed">Fixed Delay</option>
+                </select>
+                <span class="form-hint">How to space out retry attempts</span>
+            </div>
+            <div class="form-group mb-0">
+                <label class="form-label">Initial Delay (ms)</label>
+                <input type="number" class="form-input" id="initial-delay" value="500" min="100" step="100">
+                <span class="form-hint">Delay before first retry attempt</span>
+            </div>
+        </div>
+        <div class="mt-16">
+            <label class="form-label">Retry on Status Codes</label>
+            <div class="flex gap-8 flex-wrap">
+                <label class="allowed-checkbox" style="border-radius: var(--radius-sm);"><input type="checkbox" checked> <span>429 (Rate Limit)</span></label>
+                <label class="allowed-checkbox" style="border-radius: var(--radius-sm);"><input type="checkbox" checked> <span>500 (Server Error)</span></label>
+                <label class="allowed-checkbox" style="border-radius: var(--radius-sm);"><input type="checkbox" checked> <span>502 (Bad Gateway)</span></label>
+                <label class="allowed-checkbox" style="border-radius: var(--radius-sm);"><input type="checkbox" checked> <span>503 (Unavailable)</span></label>
+                <label class="allowed-checkbox" style="border-radius: var(--radius-sm);"><input type="checkbox"> <span>504 (Timeout)</span></label>
+                <label class="allowed-checkbox" style="border-radius: var(--radius-sm);"><input type="checkbox"> <span>408 (Timeout)</span></label>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% raw %}<script>
+    let targetCount = 3;
+
+    function selectStrategy(el, strategy) {
+        document.querySelectorAll('.strategy-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        showToast('Strategy set to ' + strategy, 'info');
+    }
+
+    function addTarget() {
+        targetCount++;
+        const list = document.getElementById('target-list');
+        const item = document.createElement('div');
+        item.className = 'target-item';
+        item.style.animation = 'fadeIn 0.3s ease-out';
+        item.innerHTML = `
+            <span class="target-order">${targetCount}</span>
+            <div class="target-selectors">
+                <select class="form-select" style="min-width: 140px;">
+                    <option>OpenAI</option>
+                    <option>Anthropic</option>
+                    <option>Google</option>
+                    <option>Azure</option>
+                    <option>Cohere</option>
+                </select>
+                <select class="form-select" style="min-width: 160px;">
+                    <option>gpt-4o</option>
+                    <option>gpt-4o-mini</option>
+                    <option>claude-3.5-sonnet</option>
+                    <option>gemini-pro</option>
+                </select>
+            </div>
+            <div class="target-weight">
+                <span class="target-weight-label">Weight</span>
+                <input type="range" min="0" max="100" value="0" style="flex: 1;"
+                    oninput="this.nextElementSibling.textContent = this.value + '%'">
+                <span class="target-weight-value">0%</span>
+            </div>
+            <button class="target-remove" onclick="removeTarget(this)" title="Remove">&times;</button>
+        `;
+        list.appendChild(item);
+    }
+
+    function removeTarget(btn) {
+        const item = btn.closest('.target-item');
+        const list = document.getElementById('target-list');
+        if (list.children.length <= 1) {
+            showToast('At least one route target is required', 'warning');
+            return;
+        }
+        item.style.opacity = '0';
+        item.style.transform = 'translateX(-20px)';
+        setTimeout(() => {
+            item.remove();
+            // Renumber
+            list.querySelectorAll('.target-order').forEach((el, i) => {
+                el.textContent = i + 1;
+            });
+        }, 250);
+    }
+
+    function saveRouting() {
+        showToast('Routing configuration saved', 'success');
+    }
+</script>{% endraw %}
+{% endblock %}

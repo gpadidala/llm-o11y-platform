@@ -1,0 +1,706 @@
+{% extends "base.html" %}
+{% set active_page = "keys" %}
+
+{% block title %}API Keys - LLM O11y Platform{% endblock %}
+{% block header_title %}Virtual Key Management{% endblock %}
+
+{% block extra_styles %}
+.key-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.key-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.key-card:hover::before { opacity: 1; }
+.key-card:hover { box-shadow: var(--shadow); border-color: rgba(168, 85, 247, 0.2); }
+
+.key-card.active-key::before { background: var(--gradient-teal-green); opacity: 1; }
+.key-card.disabled-key::before { background: var(--border-color); opacity: 1; }
+.key-card.disabled-key { opacity: 0.7; }
+
+.key-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.key-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.key-card-name {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.key-masked {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(13, 17, 23, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+}
+
+.key-copy-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 4px;
+    transition: var(--transition-fast);
+}
+
+.key-copy-btn:hover { color: var(--purple); }
+
+.key-owner-team {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+/* Budget Gauge */
+.budget-gauge {
+    margin-bottom: 14px;
+}
+
+.budget-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.budget-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.budget-amount {
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.budget-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.budget-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+/* Rate Limit */
+.rate-limit-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.rate-limit-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.rate-limit-value {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Key Sparkline */
+.key-sparkline {
+    margin-bottom: 14px;
+}
+
+.key-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.key-dates {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.key-actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* Generated Key Display */
+.generated-key-display {
+    background: #0d1117;
+    border: 2px solid var(--green);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    text-align: center;
+    margin: 16px 0;
+}
+
+.generated-key-value {
+    font-family: monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--green);
+    word-break: break-all;
+    margin-bottom: 8px;
+}
+
+.generated-key-warning {
+    font-size: 0.78rem;
+    color: var(--amber);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+}
+
+/* Allowed resources */
+.allowed-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.allowed-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    font-size: 0.82rem;
+}
+
+.allowed-checkbox:hover {
+    border-color: var(--purple);
+}
+
+.allowed-checkbox input {
+    accent-color: var(--purple);
+}
+
+.allowed-checkbox input:checked ~ span {
+    color: var(--purple);
+    font-weight: 600;
+}
+
+.keys-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .keys-grid { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-text">
+        <h1 class="page-title">API Keys</h1>
+        <p class="page-subtitle">Manage virtual API keys with budgets, rate limits, and usage tracking.</p>
+    </div>
+    <button class="btn btn-primary" onclick="openKeyModal()">
+        &#x2795; Create Key
+    </button>
+</div>
+
+<!-- Summary Stats -->
+<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="stat-card purple">
+        <div class="stat-top">
+            <span class="stat-icon">&#x1F511;</span>
+        </div>
+        <div class="stat-value">8</div>
+        <div class="stat-label">Total Keys</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-top">
+            <span class="stat-icon">&#x2705;</span>
+        </div>
+        <div class="stat-value">6</div>
+        <div class="stat-label">Active</div>
+    </div>
+    <div class="stat-card amber">
+        <div class="stat-top">
+            <span class="stat-icon">&#x1F4B0;</span>
+        </div>
+        <div class="stat-value">$315</div>
+        <div class="stat-label">Total Spend</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <span class="stat-icon">&#x1F4CA;</span>
+        </div>
+        <div class="stat-value">$880</div>
+        <div class="stat-label">Total Budget</div>
+    </div>
+</div>
+
+<!-- Key Cards -->
+<div class="keys-grid">
+    <!-- Key 1: production-api -->
+    <div class="key-card active-key">
+        <div class="key-card-header">
+            <div>
+                <div class="key-name-row">
+                    <span class="key-card-name">production-api</span>
+                    <span class="badge badge-green">Active</span>
+                </div>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" checked onchange="toggleKey('k1', this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="key-masked">
+            <span>sk-llmo-****7f8a</span>
+            <button class="key-copy-btn" onclick="copyKey('sk-llmo-prod-7f8a2b3c4d5e6f7a')" title="Copy key">&#x1F4CB;</button>
+        </div>
+        <div class="key-owner-team">
+            <span class="badge badge-purple">Platform Team</span>
+            <span class="chip">owner: gopal</span>
+        </div>
+        <div class="budget-gauge">
+            <div class="budget-header">
+                <span class="budget-label">Budget Usage</span>
+                <span class="budget-amount">$82.40 / $200.00</span>
+            </div>
+            <div class="budget-bar">
+                <div class="budget-fill" style="width: 41.2%; background: var(--gradient-teal-green);"></div>
+            </div>
+        </div>
+        <div class="rate-limit-row">
+            <div class="rate-limit-item">RPM: <span class="rate-limit-value">500</span></div>
+            <div class="rate-limit-item">TPM: <span class="rate-limit-value">100K</span></div>
+        </div>
+        <div class="key-sparkline">
+            <svg width="100%" height="24" viewBox="0 0 320 24" preserveAspectRatio="none">
+                <polyline fill="none" stroke="rgba(20,184,166,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                    points="0,18 20,14 40,16 60,10 80,12 100,8 120,10 140,6 160,8 180,4 200,6 220,8 240,4 260,6 280,3 300,4 320,2"/>
+                <polyline fill="url(#keySparkGrad)" stroke="none"
+                    points="0,24 0,18 20,14 40,16 60,10 80,12 100,8 120,10 140,6 160,8 180,4 200,6 220,8 240,4 260,6 280,3 300,4 320,2 320,24"/>
+                <defs>
+                    <linearGradient id="keySparkGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="rgba(20,184,166,0.15)"/>
+                        <stop offset="100%" stop-color="rgba(20,184,166,0)"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        </div>
+        <div class="key-card-footer">
+            <div class="key-dates">
+                <div>Created: Mar 12, 2026</div>
+                <div>Last used: 2 min ago</div>
+            </div>
+            <div class="key-actions">
+                <button class="btn btn-ghost btn-sm" onclick="editKey('k1')">&#x270F; Edit</button>
+                <button class="btn btn-ghost btn-sm" onclick="revokeKey('k1')" style="color: var(--coral);">Revoke</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key 2: staging-test -->
+    <div class="key-card active-key">
+        <div class="key-card-header">
+            <div>
+                <div class="key-name-row">
+                    <span class="key-card-name">staging-test</span>
+                    <span class="badge badge-green">Active</span>
+                </div>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" checked onchange="toggleKey('k2', this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="key-masked">
+            <span>sk-llmo-****3d9e</span>
+            <button class="key-copy-btn" onclick="copyKey('sk-llmo-stg-3d9e1a7b8c2f4d6e')" title="Copy key">&#x1F4CB;</button>
+        </div>
+        <div class="key-owner-team">
+            <span class="badge badge-blue">QA Team</span>
+            <span class="chip">owner: test-bot</span>
+        </div>
+        <div class="budget-gauge">
+            <div class="budget-header">
+                <span class="budget-label">Budget Usage</span>
+                <span class="budget-amount">$24.10 / $50.00</span>
+            </div>
+            <div class="budget-bar">
+                <div class="budget-fill" style="width: 48.2%; background: var(--gradient-amber-orange);"></div>
+            </div>
+        </div>
+        <div class="rate-limit-row">
+            <div class="rate-limit-item">RPM: <span class="rate-limit-value">100</span></div>
+            <div class="rate-limit-item">TPM: <span class="rate-limit-value">50K</span></div>
+        </div>
+        <div class="key-sparkline">
+            <svg width="100%" height="24" viewBox="0 0 320 24" preserveAspectRatio="none">
+                <polyline fill="none" stroke="rgba(245,158,11,0.4)" stroke-width="1.5" stroke-linecap="round"
+                    points="0,20 40,18 80,14 120,16 160,12 200,10 240,14 280,8 320,6"/>
+            </svg>
+        </div>
+        <div class="key-card-footer">
+            <div class="key-dates">
+                <div>Created: Mar 20, 2026</div>
+                <div>Last used: 15 min ago</div>
+            </div>
+            <div class="key-actions">
+                <button class="btn btn-ghost btn-sm" onclick="editKey('k2')">&#x270F; Edit</button>
+                <button class="btn btn-ghost btn-sm" onclick="revokeKey('k2')" style="color: var(--coral);">Revoke</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key 3: ml-pipeline -->
+    <div class="key-card active-key">
+        <div class="key-card-header">
+            <div>
+                <div class="key-name-row">
+                    <span class="key-card-name">ml-pipeline</span>
+                    <span class="badge badge-green">Active</span>
+                </div>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" checked onchange="toggleKey('k3', this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="key-masked">
+            <span>sk-llmo-****5b2c</span>
+            <button class="key-copy-btn" onclick="copyKey('sk-llmo-ml-5b2c8f4e')" title="Copy key">&#x1F4CB;</button>
+        </div>
+        <div class="key-owner-team">
+            <span class="badge badge-teal">ML Team</span>
+            <span class="chip">owner: ml-service</span>
+        </div>
+        <div class="budget-gauge">
+            <div class="budget-header">
+                <span class="budget-label">Budget Usage</span>
+                <span class="budget-amount">$156.00 / $500.00</span>
+            </div>
+            <div class="budget-bar">
+                <div class="budget-fill" style="width: 31.2%; background: var(--gradient-purple-blue);"></div>
+            </div>
+        </div>
+        <div class="rate-limit-row">
+            <div class="rate-limit-item">RPM: <span class="rate-limit-value">1000</span></div>
+            <div class="rate-limit-item">TPM: <span class="rate-limit-value">500K</span></div>
+        </div>
+        <div class="key-sparkline">
+            <svg width="100%" height="24" viewBox="0 0 320 24" preserveAspectRatio="none">
+                <polyline fill="none" stroke="rgba(168,85,247,0.4)" stroke-width="1.5" stroke-linecap="round"
+                    points="0,22 40,20 80,18 120,14 160,16 200,12 240,8 280,6 320,4"/>
+            </svg>
+        </div>
+        <div class="key-card-footer">
+            <div class="key-dates">
+                <div>Created: Feb 5, 2026</div>
+                <div>Last used: 1 min ago</div>
+            </div>
+            <div class="key-actions">
+                <button class="btn btn-ghost btn-sm" onclick="editKey('k3')">&#x270F; Edit</button>
+                <button class="btn btn-ghost btn-sm" onclick="revokeKey('k3')" style="color: var(--coral);">Revoke</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key 4: internal-tools -->
+    <div class="key-card active-key">
+        <div class="key-card-header">
+            <div>
+                <div class="key-name-row">
+                    <span class="key-card-name">internal-tools</span>
+                    <span class="badge badge-green">Active</span>
+                </div>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="key-masked">
+            <span>sk-llmo-****9a1d</span>
+            <button class="key-copy-btn" onclick="copyKey('sk-llmo-int-9a1d')" title="Copy key">&#x1F4CB;</button>
+        </div>
+        <div class="key-owner-team">
+            <span class="badge badge-amber">DevOps</span>
+            <span class="chip">owner: gopal</span>
+        </div>
+        <div class="budget-gauge">
+            <div class="budget-header">
+                <span class="budget-label">Budget Usage</span>
+                <span class="budget-amount">$8.20 / $30.00</span>
+            </div>
+            <div class="budget-bar">
+                <div class="budget-fill" style="width: 27.3%; background: var(--gradient-blue-cyan);"></div>
+            </div>
+        </div>
+        <div class="rate-limit-row">
+            <div class="rate-limit-item">RPM: <span class="rate-limit-value">200</span></div>
+            <div class="rate-limit-item">TPM: <span class="rate-limit-value">80K</span></div>
+        </div>
+        <div class="key-card-footer">
+            <div class="key-dates">
+                <div>Created: Apr 1, 2026</div>
+                <div>Last used: 3h ago</div>
+            </div>
+            <div class="key-actions">
+                <button class="btn btn-ghost btn-sm" onclick="editKey('k4')">&#x270F; Edit</button>
+                <button class="btn btn-ghost btn-sm" onclick="revokeKey('k4')" style="color: var(--coral);">Revoke</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key 5: mobile-app (disabled) -->
+    <div class="key-card disabled-key">
+        <div class="key-card-header">
+            <div>
+                <div class="key-name-row">
+                    <span class="key-card-name">mobile-app-v1</span>
+                    <span class="badge badge-gray">Disabled</span>
+                </div>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" onchange="toggleKey('k5', this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="key-masked">
+            <span>sk-llmo-****2c4b</span>
+            <button class="key-copy-btn" onclick="copyKey('sk-llmo-mob-2c4b')" title="Copy key">&#x1F4CB;</button>
+        </div>
+        <div class="key-owner-team">
+            <span class="badge badge-gray">Mobile Team</span>
+            <span class="chip">owner: mobile-svc</span>
+        </div>
+        <div class="budget-gauge">
+            <div class="budget-header">
+                <span class="budget-label">Budget Usage</span>
+                <span class="budget-amount">$45.00 / $100.00</span>
+            </div>
+            <div class="budget-bar">
+                <div class="budget-fill" style="width: 45%; background: var(--border-color);"></div>
+            </div>
+        </div>
+        <div class="key-card-footer">
+            <div class="key-dates">
+                <div>Created: Jan 10, 2026</div>
+                <div>Last used: 2 weeks ago</div>
+            </div>
+            <div class="key-actions">
+                <button class="btn btn-ghost btn-sm" onclick="editKey('k5')">&#x270F; Edit</button>
+                <button class="btn btn-ghost btn-sm" onclick="deleteKey('k5')" style="color: var(--coral);">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Key Modal -->
+<div class="modal-overlay" id="key-modal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <span class="modal-title" id="key-modal-title">Create Virtual Key</span>
+            <button class="modal-close" onclick="closeKeyModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Generated key display (initially hidden) -->
+            <div id="generated-key-section" style="display: none;">
+                <div class="generated-key-display">
+                    <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Your API Key</div>
+                    <div class="generated-key-value" id="generated-key-value">sk-llmo-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</div>
+                    <button class="btn btn-success btn-sm" onclick="copyGeneratedKey()">&#x1F4CB; Copy Key</button>
+                    <div class="generated-key-warning mt-12">
+                        &#x26A0; This key will only be shown once. Store it securely.
+                    </div>
+                </div>
+            </div>
+
+            <div id="key-form-section">
+                <div class="grid-2" style="gap: 16px; margin-bottom: 0;">
+                    <div class="form-group">
+                        <label class="form-label">Key Name</label>
+                        <input type="text" class="form-input" id="new-key-name" placeholder="e.g. production-api">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Owner</label>
+                        <input type="text" class="form-input" id="new-key-owner" placeholder="e.g. gopal">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Team</label>
+                    <input type="text" class="form-input" id="new-key-team" placeholder="e.g. Platform Team">
+                </div>
+
+                <div class="grid-2" style="gap: 16px; margin-bottom: 0;">
+                    <div class="form-group">
+                        <label class="form-label">Monthly Budget (USD)</label>
+                        <div class="flex items-center gap-12">
+                            <input type="range" id="new-key-budget" min="10" max="1000" step="10" value="100"
+                                oninput="document.getElementById('new-key-budget-val').textContent = '$' + this.value" style="flex: 1;">
+                            <span class="font-bold" id="new-key-budget-val" style="min-width: 50px;">$100</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Rate Limits</label>
+                        <div class="flex gap-8">
+                            <div class="flex-1">
+                                <input type="number" class="form-input" id="new-key-rpm" placeholder="RPM" value="500">
+                                <span class="form-hint">Requests/min</span>
+                            </div>
+                            <div class="flex-1">
+                                <input type="number" class="form-input" id="new-key-tpm" placeholder="TPM" value="100000">
+                                <span class="form-hint">Tokens/min</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Allowed Providers</label>
+                    <div class="allowed-grid">
+                        <label class="allowed-checkbox"><input type="checkbox" checked> <span>OpenAI</span></label>
+                        <label class="allowed-checkbox"><input type="checkbox" checked> <span>Anthropic</span></label>
+                        <label class="allowed-checkbox"><input type="checkbox" checked> <span>Google</span></label>
+                        <label class="allowed-checkbox"><input type="checkbox"> <span>Azure</span></label>
+                        <label class="allowed-checkbox"><input type="checkbox"> <span>Cohere</span></label>
+                        <label class="allowed-checkbox"><input type="checkbox"> <span>Mistral</span></label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Allowed Models</label>
+                    <select class="form-select" id="new-key-models" multiple style="min-height: 80px;">
+                        <option selected>gpt-4o</option>
+                        <option selected>gpt-4o-mini</option>
+                        <option selected>claude-3.5-sonnet</option>
+                        <option>claude-3-haiku</option>
+                        <option>gemini-pro</option>
+                        <option>gpt-3.5-turbo</option>
+                    </select>
+                    <span class="form-hint">Hold Ctrl/Cmd to select multiple models</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tags</label>
+                    <input type="text" class="form-input" id="new-key-tags" placeholder="Comma-separated tags (e.g. production, team-a)">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeKeyModal()">Cancel</button>
+            <button class="btn btn-primary" id="create-key-btn" onclick="createKey()">
+                &#x1F511; Generate Key
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function openKeyModal() {
+        document.getElementById('key-modal').classList.add('active');
+        document.getElementById('generated-key-section').style.display = 'none';
+        document.getElementById('key-form-section').style.display = 'block';
+        document.getElementById('create-key-btn').style.display = '';
+    }
+
+    function closeKeyModal() {
+        document.getElementById('key-modal').classList.remove('active');
+    }
+
+    function createKey() {
+        const name = document.getElementById('new-key-name').value.trim();
+        if (!name) {
+            showToast('Please enter a key name', 'warning');
+            return;
+        }
+
+        // Generate a fake key for display
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        let keyStr = 'sk-llmo-';
+        for (let i = 0; i < 32; i++) keyStr += chars.charAt(Math.floor(Math.random() * chars.length));
+
+        document.getElementById('generated-key-section').style.display = 'block';
+        document.getElementById('generated-key-value').textContent = keyStr;
+        document.getElementById('key-form-section').style.display = 'none';
+        document.getElementById('create-key-btn').style.display = 'none';
+
+        showToast('API key created successfully', 'success');
+    }
+
+    function copyGeneratedKey() {
+        const key = document.getElementById('generated-key-value').textContent;
+        navigator.clipboard.writeText(key).then(() => showToast('Key copied to clipboard', 'success'));
+    }
+
+    function copyKey(key) {
+        navigator.clipboard.writeText(key).then(() => showToast('Key copied to clipboard', 'success'));
+    }
+
+    function toggleKey(id, enabled) {
+        showToast(enabled ? 'Key enabled' : 'Key disabled', enabled ? 'success' : 'warning');
+    }
+
+    function editKey(id) {
+        showToast('Edit key dialog would open here', 'info');
+    }
+
+    function revokeKey(id) {
+        if (confirm('Are you sure you want to revoke this key? This action cannot be undone.')) {
+            showToast('Key revoked', 'warning');
+        }
+    }
+
+    function deleteKey(id) {
+        if (confirm('Are you sure you want to permanently delete this key?')) {
+            showToast('Key deleted', 'info');
+        }
+    }
+</script>
+{% endblock %}

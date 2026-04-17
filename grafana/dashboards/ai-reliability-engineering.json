@@ -1,0 +1,952 @@
+{
+  "uid": "ai-reliability",
+  "title": "AI Reliability Engineering",
+  "description": "SLI/SLO tracking, error budgets, incident detection, and recovery metrics for AI platform reliability engineering.",
+  "tags": ["llm", "reliability", "slo", "sli", "advanced"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "links": [
+    {
+      "title": "AI Cost Intelligence",
+      "type": "link",
+      "url": "/d/ai-cost-intel/ai-cost-intelligence",
+      "icon": "bolt",
+      "tooltip": "Deep cost analysis and forecasting",
+      "targetBlank": false
+    },
+    {
+      "title": "AI Model Comparison",
+      "type": "link",
+      "url": "/d/ai-model-compare/ai-model-comparison",
+      "icon": "exchange-alt",
+      "tooltip": "Side-by-side model benchmarking",
+      "targetBlank": false
+    },
+    {
+      "title": "AI Agent & MCP Sessions",
+      "type": "link",
+      "url": "/d/ai-agent-sessions/ai-agent-mcp-sessions",
+      "icon": "users-alt",
+      "tooltip": "Agent and MCP tool call intelligence",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "provider",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(llm_requests_total, provider)",
+        "query": {
+          "query": "label_values(llm_requests_total, provider)",
+          "refId": "StandardVariableQuery"
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "model",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(llm_requests_total{provider=~\"$provider\"}, model)",
+        "query": {
+          "query": "label_values(llm_requests_total{provider=~\"$provider\"}, model)",
+          "refId": "StandardVariableQuery"
+        },
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "slo_target",
+        "type": "custom",
+        "query": "99.9,99.5,99.0",
+        "current": { "selected": true, "text": "99.9", "value": "99.9" },
+        "options": [
+          { "selected": true, "text": "99.9", "value": "99.9" },
+          { "selected": false, "text": "99.5", "value": "99.5" },
+          { "selected": false, "text": "99.0", "value": "99.0" }
+        ],
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Service Level Indicators",
+      "id": 100,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 101,
+      "title": "Request Success Rate SLI",
+      "description": "Percentage of successful LLM requests (1 - error_rate). The SLO target line and burn rate alert zone show when the service is at risk of breaching its objective.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "area" }
+          },
+          "unit": "percentunit",
+          "min": 0.95,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.995 },
+              { "color": "green", "value": 0.999 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "SLO Target" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.lineWidth", "value": 2 },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "min", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "1 - (\n  sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[$__rate_interval]))\n  /\n  sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__rate_interval]))\n)",
+          "legendFormat": "Success Rate"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "$slo_target / 100",
+          "legendFormat": "SLO Target"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "title": "Latency SLI (% < 2000ms)",
+      "description": "Percentage of requests completing within 2000ms latency threshold. Tracks the proportion of requests meeting the latency SLO.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "area" }
+          },
+          "unit": "percentunit",
+          "min": 0.9,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.95 },
+              { "color": "green", "value": 0.99 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "SLO Target" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.lineWidth", "value": 2 },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "min", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(llm_request_duration_milliseconds_bucket{provider=~\"$provider\", model=~\"$model\", le=\"2000\"}[$__rate_interval]))\n/\nsum(rate(llm_request_duration_milliseconds_bucket{provider=~\"$provider\", model=~\"$model\", le=\"+Inf\"}[$__rate_interval]))",
+          "legendFormat": "% Requests < 2000ms"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "$slo_target / 100",
+          "legendFormat": "SLO Target"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "title": "TTFT SLI (% < 500ms)",
+      "description": "Percentage of requests where Time to First Token is under 500ms. Critical for interactive and streaming AI experiences.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "area" }
+          },
+          "unit": "percentunit",
+          "min": 0.8,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.9 },
+              { "color": "green", "value": 0.95 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "min", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(llm_ttft_milliseconds_bucket{provider=~\"$provider\", model=~\"$model\", le=\"500\"}[$__rate_interval]))\n/\nsum(rate(llm_ttft_milliseconds_bucket{provider=~\"$provider\", model=~\"$model\", le=\"+Inf\"}[$__rate_interval]))",
+          "legendFormat": "% Requests TTFT < 500ms"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "title": "Availability (Uptime)",
+      "description": "Current availability calculated as the proportion of successful requests over the selected time window.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.99 },
+              { "color": "green", "value": 0.999 }
+            ]
+          },
+          "unit": "percentunit",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "1 - (\n  sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[$__range]))\n  /\n  sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__range]))\n)",
+          "legendFormat": "Availability",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Error Budget",
+      "id": 105,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 106,
+      "title": "Error Budget Remaining",
+      "description": "Remaining error budget as a percentage. Green (>70%) = healthy, Yellow (>30%) = caution, Red (<30%) = critical.",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "green", "value": 70 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "clamp_min(\n  1 - (\n    sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[$__range]))\n    /\n    (sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__range])) * (1 - $slo_target / 100))\n  ),\n  0\n)",
+          "legendFormat": "Error Budget Remaining",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 107,
+      "title": "Error Budget Burn Rate",
+      "description": "Current error budget burn rate compared to the sustainable rate (1x). A burn rate above 1x means the budget is being consumed faster than allowed. 14.4x = page alert, 6x = ticket alert.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "burn rate",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "dashed+area" }
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 6 },
+              { "color": "red", "value": 14.4 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Sustainable Rate" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "max", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(\n  sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[5m]))\n  /\n  sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[5m]))\n) / (1 - $slo_target / 100)",
+          "legendFormat": "Burn Rate (5m)"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(\n  sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[1h]))\n  /\n  sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[1h]))\n) / (1 - $slo_target / 100)",
+          "legendFormat": "Burn Rate (1h)"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "1",
+          "legendFormat": "Sustainable Rate"
+        }
+      ]
+    },
+    {
+      "id": 108,
+      "title": "Time Until Budget Exhaustion",
+      "description": "Estimated hours remaining before the error budget is fully consumed at the current burn rate.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 24 },
+              { "color": "yellow", "value": 72 },
+              { "color": "green", "value": 168 }
+            ]
+          },
+          "unit": "h",
+          "mappings": [
+            {
+              "type": "special",
+              "options": { "match": "null", "result": { "text": "N/A", "color": "text" } }
+            },
+            {
+              "type": "special",
+              "options": { "match": "NaN", "result": { "text": "Infinite", "color": "green" } }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "720 * clamp_min(\n  1 - (\n    sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[$__range]))\n    /\n    (sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__range])) * (1 - $slo_target / 100))\n  ),\n  0\n)\n/\nclamp_min(\n  (\n    sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[5m]))\n    /\n    sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[5m]))\n  ) / (1 - $slo_target / 100),\n  0.001\n)",
+          "legendFormat": "Hours Remaining",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 109,
+      "title": "Monthly Error Budget Consumption",
+      "description": "Daily breakdown of error budget consumption this month, shown as percentage of the total monthly error budget used each day.",
+      "type": "bargauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3.33 },
+              { "color": "red", "value": 10 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "minVizWidth": 8,
+        "minVizHeight": 16,
+        "namePlacement": "auto",
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * (\n  sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[1d]))\n  /\n  clamp_min(sum(increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[1d])) * (1 - $slo_target / 100), 0.001)\n)",
+          "legendFormat": "Budget Consumed (1d)",
+          "instant": false
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Incident Detection",
+      "id": 110,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 111,
+      "title": "Anomaly Score (Error Rate Z-Score)",
+      "description": "Z-score of current error rate compared to the 7-day baseline mean and standard deviation. Values above 3 indicate statistically significant anomalies.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 19 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": true,
+            "axisLabel": "Z-Score",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "dashed+area" }
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "max", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(\n  (\n    sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[5m]))\n    /\n    sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[5m]))\n  )\n  -\n  (\n    sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[7d]))\n    /\n    sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[7d]))\n  )\n)\n/\nclamp_min(\n  stddev_over_time(\n    (\n      sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[5m]))\n      /\n      sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[5m]))\n    )[7d:1h]\n  ),\n  0.001\n)",
+          "legendFormat": "Anomaly Z-Score"
+        }
+      ]
+    },
+    {
+      "id": 112,
+      "title": "Provider Degradation Heatmap",
+      "description": "Heatmap of error rates by provider over time. Hot cells indicate providers experiencing elevated error rates.",
+      "type": "heatmap",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 19 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "scheme", "schemeId": "Oranges" },
+          "custom": {
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "calculate": true,
+        "calculation": { "xBuckets": { "mode": "size" }, "yBuckets": { "mode": "size" } },
+        "color": { "mode": "scheme", "scheme": "Oranges", "fill": "dark-orange", "exponent": 0.5 },
+        "yAxis": { "axisPlacement": "left" },
+        "tooltip": { "show": true, "yHistogram": false },
+        "cellGap": 2,
+        "filterValues": { "le": 1e-9 },
+        "showValue": "never"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (provider) (rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[$__rate_interval]))\n/\nsum by (provider) (rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__rate_interval]))",
+          "legendFormat": "{{provider}}",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 113,
+      "title": "Latency Spike Detection",
+      "description": "P99 latency plotted against a 3-sigma threshold derived from the 1-hour rolling average and standard deviation. Spikes above the threshold indicate abnormal latency.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 19 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "3-Sigma Threshold" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.lineWidth", "value": 2 },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "max", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(llm_request_duration_milliseconds_bucket{provider=~\"$provider\", model=~\"$model\"}[$__rate_interval])))",
+          "legendFormat": "P99 Latency"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "avg_over_time(\n  histogram_quantile(0.99, sum by (le) (rate(llm_request_duration_milliseconds_bucket{provider=~\"$provider\", model=~\"$model\"}[5m])))[1h:5m]\n)\n+\n3 * stddev_over_time(\n  histogram_quantile(0.99, sum by (le) (rate(llm_request_duration_milliseconds_bucket{provider=~\"$provider\", model=~\"$model\"}[5m])))[1h:5m]\n)",
+          "legendFormat": "3-Sigma Threshold"
+        }
+      ]
+    },
+    {
+      "id": 114,
+      "title": "Request Queue Depth",
+      "description": "Comparison of incoming request rate vs completed request rate. A growing gap indicates request queuing and potential capacity issues.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 19 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "req/s",
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
+          },
+          "unit": "reqps"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Completed" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Incoming" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__rate_interval]))",
+          "legendFormat": "Incoming"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"success\"}[$__rate_interval]))",
+          "legendFormat": "Completed"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Recovery Metrics",
+      "id": 115,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 116,
+      "title": "Mean Time to Detection (MTTD)",
+      "description": "Estimated mean time to detection based on the interval between normal operation and the first detected error spike (approximated from error rate transitions).",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 28 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 300000 },
+              { "color": "red", "value": 900000 }
+            ]
+          },
+          "unit": "ms",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "avg(changes(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[10m])) * 60000",
+          "legendFormat": "MTTD (approx)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 117,
+      "title": "Fallback Activation Rate",
+      "description": "Rate at which fallback/retry mechanisms are triggered per hour across providers, indicating primary provider degradation.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 28 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "triggers/hr",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["sum", "lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (provider) (increase(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[1h]))",
+          "legendFormat": "{{provider}} fallbacks/hr"
+        }
+      ]
+    },
+    {
+      "id": 118,
+      "title": "Circuit Breaker State Timeline",
+      "description": "State timeline showing provider health state over time. States are derived from error rate thresholds: Closed (healthy) < 5%, Half-Open 5-20%, Open (tripped) > 20%.",
+      "type": "state-timeline",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 28 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "red", "value": 0.2 }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0.05,
+                "result": { "text": "Closed", "color": "green", "index": 0 }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.05,
+                "to": 0.2,
+                "result": { "text": "Half-Open", "color": "yellow", "index": 1 }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.2,
+                "to": 1,
+                "result": { "text": "Open", "color": "red", "index": 2 }
+              }
+            }
+          ],
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "auto",
+        "rowHeight": 0.8,
+        "mergeValues": true,
+        "alignValue": "left",
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (provider) (rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"error\"}[$__rate_interval]))\n/\nsum by (provider) (rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__rate_interval]))",
+          "legendFormat": "{{provider}}"
+        }
+      ]
+    },
+    {
+      "id": 119,
+      "title": "Recovery Success Rate",
+      "description": "Percentage of requests that succeeded after an initial error (approximated by success rate during periods of elevated errors). Higher is better.",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 28 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "green", "value": 90 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * (\n  sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\", status=\"success\"}[$__rate_interval]))\n  /\n  sum(rate(llm_requests_total{provider=~\"$provider\", model=~\"$model\"}[$__rate_interval]))\n)",
+          "legendFormat": "Recovery Success %",
+          "instant": true
+        }
+      ]
+    }
+  ]
+}

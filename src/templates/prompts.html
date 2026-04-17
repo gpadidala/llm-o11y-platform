@@ -1,0 +1,739 @@
+{% extends "base.html" %}
+{% set active_page = "prompts" %}
+
+{% block title %}Prompt Studio - LLM O11y Platform{% endblock %}
+{% block header_title %}Prompt Studio{% endblock %}
+
+{% block extra_styles %}
+.prompt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+}
+
+.prompt-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.prompt-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--gradient-purple-blue);
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.prompt-card:hover {
+    border-color: rgba(168, 85, 247, 0.25);
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+}
+
+.prompt-card:hover::before { opacity: 1; }
+
+.prompt-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.prompt-card-name {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.prompt-card-desc {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.prompt-card-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.prompt-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.prompt-card-meta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.prompt-card-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: var(--transition-fast);
+}
+
+.prompt-card:hover .prompt-card-actions {
+    opacity: 1;
+}
+
+.prompt-version-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--blue-light);
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.prompt-model-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(168, 85, 247, 0.12);
+    color: var(--purple-light);
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+/* Editor Modal Styles */
+.editor-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    min-height: 400px;
+}
+
+.code-editor {
+    width: 100%;
+    min-height: 200px;
+    padding: 16px;
+    background: #0d1117;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    resize: vertical;
+    transition: var(--transition);
+}
+
+.code-editor:focus {
+    outline: none;
+    border-color: var(--purple);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+}
+
+.variables-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+
+.variable-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 0.82rem;
+}
+
+.variable-name {
+    font-family: monospace;
+    color: var(--purple);
+    font-weight: 600;
+    background: rgba(168, 85, 247, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.preview-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    min-height: 200px;
+}
+
+.preview-panel .var-highlight {
+    background: rgba(168, 85, 247, 0.15);
+    color: var(--purple);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.82rem;
+}
+
+/* Tags Input */
+.tags-input-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    min-height: 40px;
+    align-items: center;
+    cursor: text;
+    transition: var(--transition);
+}
+
+.tags-input-container:focus-within {
+    border-color: var(--purple);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+}
+
+.tags-input-container input {
+    flex: 1;
+    min-width: 80px;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+}
+
+.tags-input-container input::placeholder {
+    color: var(--text-muted);
+}
+
+/* Version Timeline */
+.version-timeline {
+    position: relative;
+    padding-left: 20px;
+}
+
+.version-timeline::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: var(--border-color);
+}
+
+.version-item {
+    position: relative;
+    padding: 8px 0 8px 16px;
+}
+
+.version-item::before {
+    content: '';
+    position: absolute;
+    left: -17px;
+    top: 14px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border-color);
+    border: 2px solid var(--bg-secondary);
+}
+
+.version-item.current::before {
+    background: var(--purple);
+    box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+}
+
+.version-item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.version-item-meta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* A/B Variant */
+.variant-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 12px;
+}
+
+.variant-tab {
+    padding: 8px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.variant-tab.active {
+    background: var(--bg-primary);
+    color: var(--purple);
+    border-color: var(--purple);
+}
+
+@media (max-width: 768px) {
+    .prompt-grid { grid-template-columns: 1fr; }
+    .editor-layout { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-text">
+        <h1 class="page-title">Prompt Studio</h1>
+        <p class="page-subtitle">Create, manage, and version your prompt templates with A/B testing support.</p>
+    </div>
+    <button class="btn btn-primary" onclick="openPromptModal()">
+        &#x2795; Create Template
+    </button>
+</div>
+
+<!-- Filter Bar -->
+<div class="flex gap-12 items-center mb-24 flex-wrap">
+    <input type="text" class="form-input" placeholder="Search prompts..." style="max-width: 280px;" id="prompt-search" oninput="filterPrompts()">
+    <select class="form-select" style="width: auto;">
+        <option value="">All Tags</option>
+        <option>customer-support</option>
+        <option>code-generation</option>
+        <option>summarization</option>
+        <option>data-extraction</option>
+    </select>
+    <select class="form-select" style="width: auto;">
+        <option value="">All Models</option>
+        <option>gpt-4o</option>
+        <option>claude-3.5-sonnet</option>
+        <option>gemini-pro</option>
+    </select>
+</div>
+
+<!-- Prompt Template Grid -->
+<div class="prompt-grid" id="prompt-grid">
+    <!-- Customer Support Template -->
+    <div class="prompt-card" onclick="openPromptModal('edit', 0)">
+        <div class="prompt-card-header">
+            <div>
+                <div class="prompt-card-name">Customer Support Agent</div>
+                <div class="flex gap-6">
+                    <span class="prompt-version-badge">v3.2</span>
+                    <span class="prompt-model-badge">gpt-4o</span>
+                </div>
+            </div>
+        </div>
+        <div class="prompt-card-desc">Professional customer support agent that handles queries, complaints, and product inquiries with empathy and efficiency.</div>
+        <div class="prompt-card-tags">
+            <span class="chip">customer-support</span>
+            <span class="chip">production</span>
+        </div>
+        <div class="prompt-card-footer">
+            <span class="prompt-card-meta">Updated 2h ago &middot; 847 uses</span>
+            <div class="prompt-card-actions">
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); testPrompt(0)" title="Test">&#x25B6;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); duplicatePrompt(0)" title="Duplicate">&#x1F4CB;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deletePrompt(0)" title="Delete" style="color: var(--coral);">&#x1F5D1;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Code Generation Template -->
+    <div class="prompt-card" onclick="openPromptModal('edit', 1)">
+        <div class="prompt-card-header">
+            <div>
+                <div class="prompt-card-name">Code Generator</div>
+                <div class="flex gap-6">
+                    <span class="prompt-version-badge">v2.1</span>
+                    <span class="prompt-model-badge">claude-3.5-sonnet</span>
+                </div>
+            </div>
+        </div>
+        <div class="prompt-card-desc">Generates clean, well-documented code with tests based on natural language descriptions. Supports multiple languages.</div>
+        <div class="prompt-card-tags">
+            <span class="chip">code-generation</span>
+            <span class="chip">multi-language</span>
+        </div>
+        <div class="prompt-card-footer">
+            <span class="prompt-card-meta">Updated 1d ago &middot; 1,203 uses</span>
+            <div class="prompt-card-actions">
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); testPrompt(1)">&#x25B6;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); duplicatePrompt(1)">&#x1F4CB;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deletePrompt(1)" style="color: var(--coral);">&#x1F5D1;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summarization Template -->
+    <div class="prompt-card" onclick="openPromptModal('edit', 2)">
+        <div class="prompt-card-header">
+            <div>
+                <div class="prompt-card-name">Document Summarizer</div>
+                <div class="flex gap-6">
+                    <span class="prompt-version-badge">v1.4</span>
+                    <span class="prompt-model-badge">gpt-4o-mini</span>
+                </div>
+            </div>
+        </div>
+        <div class="prompt-card-desc">Summarizes long documents into concise, actionable bullet points while preserving key information and context.</div>
+        <div class="prompt-card-tags">
+            <span class="chip">summarization</span>
+            <span class="chip">documents</span>
+        </div>
+        <div class="prompt-card-footer">
+            <span class="prompt-card-meta">Updated 3d ago &middot; 562 uses</span>
+            <div class="prompt-card-actions">
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); testPrompt(2)">&#x25B6;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); duplicatePrompt(2)">&#x1F4CB;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deletePrompt(2)" style="color: var(--coral);">&#x1F5D1;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Extraction Template -->
+    <div class="prompt-card" onclick="openPromptModal('edit', 3)">
+        <div class="prompt-card-header">
+            <div>
+                <div class="prompt-card-name">Data Extractor</div>
+                <div class="flex gap-6">
+                    <span class="prompt-version-badge">v4.0</span>
+                    <span class="prompt-model-badge">gpt-4o</span>
+                </div>
+            </div>
+        </div>
+        <div class="prompt-card-desc">Extracts structured data from unstructured text with JSON schema validation. Handles invoices, receipts, and forms.</div>
+        <div class="prompt-card-tags">
+            <span class="chip">data-extraction</span>
+            <span class="chip">json</span>
+            <span class="chip">production</span>
+        </div>
+        <div class="prompt-card-footer">
+            <span class="prompt-card-meta">Updated 6h ago &middot; 2,341 uses</span>
+            <div class="prompt-card-actions">
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); testPrompt(3)">&#x25B6;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); duplicatePrompt(3)">&#x1F4CB;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deletePrompt(3)" style="color: var(--coral);">&#x1F5D1;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sentiment Analysis Template -->
+    <div class="prompt-card" onclick="openPromptModal('edit', 4)">
+        <div class="prompt-card-header">
+            <div>
+                <div class="prompt-card-name">Sentiment Analyzer</div>
+                <div class="flex gap-6">
+                    <span class="prompt-version-badge">v1.0</span>
+                    <span class="prompt-model-badge">gemini-pro</span>
+                </div>
+            </div>
+        </div>
+        <div class="prompt-card-desc">Analyzes customer feedback and reviews for sentiment, key themes, and actionable insights with structured output.</div>
+        <div class="prompt-card-tags">
+            <span class="chip">sentiment</span>
+            <span class="chip">analytics</span>
+        </div>
+        <div class="prompt-card-footer">
+            <span class="prompt-card-meta">Updated 5d ago &middot; 189 uses</span>
+            <div class="prompt-card-actions">
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); testPrompt(4)">&#x25B6;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); duplicatePrompt(4)">&#x1F4CB;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deletePrompt(4)" style="color: var(--coral);">&#x1F5D1;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Translation Template -->
+    <div class="prompt-card" onclick="openPromptModal('edit', 5)">
+        <div class="prompt-card-header">
+            <div>
+                <div class="prompt-card-name">Multi-language Translator</div>
+                <div class="flex gap-6">
+                    <span class="prompt-version-badge">v2.3</span>
+                    <span class="prompt-model-badge">gpt-4o</span>
+                </div>
+            </div>
+        </div>
+        <div class="prompt-card-desc">Context-aware translation between 50+ languages preserving tone, idioms, and cultural nuances in the output.</div>
+        <div class="prompt-card-tags">
+            <span class="chip">translation</span>
+            <span class="chip">i18n</span>
+        </div>
+        <div class="prompt-card-footer">
+            <span class="prompt-card-meta">Updated 1w ago &middot; 423 uses</span>
+            <div class="prompt-card-actions">
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); testPrompt(5)">&#x25B6;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); duplicatePrompt(5)">&#x1F4CB;</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); deletePrompt(5)" style="color: var(--coral);">&#x1F5D1;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div class="modal-overlay" id="prompt-modal">
+    <div class="modal modal-xl">
+        <div class="modal-header">
+            <span class="modal-title" id="prompt-modal-title">Create Prompt Template</span>
+            <button class="modal-close" onclick="closePromptModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="grid-2" style="gap: 20px; margin-bottom: 0;">
+                <!-- Left Column: Editor -->
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">Template Name</label>
+                        <input type="text" class="form-input" id="tpl-name" placeholder="e.g. Customer Support Agent">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-input" id="tpl-desc" placeholder="Brief description of what this prompt does">
+                    </div>
+                    <div class="form-group">
+                        <div class="flex items-center justify-between mb-4">
+                            <label class="form-label mb-0">Template Body</label>
+                            <span class="text-xs text-muted">Use {{variable_name}} for variables</span>
+                        </div>
+                        <!-- A/B Variant Tabs -->
+                        <div class="variant-tabs">
+                            <div class="variant-tab active" onclick="switchVariant('a', this)">Variant A</div>
+                            <div class="variant-tab" onclick="switchVariant('b', this)">Variant B</div>
+                            <button class="btn btn-ghost btn-sm" style="margin-left: 8px; font-size: 0.75rem;">+ Add Variant</button>
+                        </div>
+                        <textarea class="code-editor" id="tpl-body" rows="10"
+                            placeholder="You are a {{role}}. Your task is to {{task}}.
+
+Given the following context:
+{{context}}
+
+Please provide a {{output_format}} response."
+                            oninput="detectVariables(); updatePreview()"></textarea>
+                    </div>
+                    <div class="flex gap-12">
+                        <div class="form-group flex-1">
+                            <label class="form-label">Model</label>
+                            <select class="form-select" id="tpl-model">
+                                <option>gpt-4o</option>
+                                <option>gpt-4o-mini</option>
+                                <option>claude-3.5-sonnet</option>
+                                <option>claude-3-haiku</option>
+                                <option>gemini-pro</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label class="form-label">Provider</label>
+                            <select class="form-select" id="tpl-provider">
+                                <option>OpenAI</option>
+                                <option>Anthropic</option>
+                                <option>Google</option>
+                                <option>Azure</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tags</label>
+                        <div class="tags-input-container" id="tpl-tags-container" onclick="this.querySelector('input').focus()">
+                            <input type="text" placeholder="Type and press Enter..." id="tpl-tags-input"
+                                onkeydown="handleTagInput(event)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Preview & Variables -->
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">Detected Variables</label>
+                        <div class="variables-panel" id="tpl-variables">
+                            <div style="color: var(--text-muted); font-size: 0.82rem; padding: 8px;">
+                                Start typing your template to detect variables...
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Preview</label>
+                        <div class="preview-panel" id="tpl-preview">
+                            <span style="color: var(--text-muted);">Template preview will appear here as you type...</span>
+                        </div>
+                    </div>
+                    <!-- Version History (for edit mode) -->
+                    <div class="form-group" id="version-history-section" style="display: none;">
+                        <label class="form-label">Version History</label>
+                        <div class="version-timeline">
+                            <div class="version-item current">
+                                <div class="version-item-header">
+                                    <span class="badge badge-purple">v3.2</span> Current
+                                </div>
+                                <div class="version-item-meta">Updated 2 hours ago by GP</div>
+                            </div>
+                            <div class="version-item">
+                                <div class="version-item-header">
+                                    <span class="badge badge-gray">v3.1</span> Added context variable
+                                </div>
+                                <div class="version-item-meta">3 days ago by GP</div>
+                            </div>
+                            <div class="version-item">
+                                <div class="version-item-header">
+                                    <span class="badge badge-gray">v3.0</span> Major rewrite
+                                </div>
+                                <div class="version-item-meta">1 week ago by GP</div>
+                            </div>
+                            <div class="version-item">
+                                <div class="version-item-header">
+                                    <span class="badge badge-gray">v2.0</span> Initial version
+                                </div>
+                                <div class="version-item-meta">2 weeks ago by GP</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closePromptModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="savePromptTemplate()">
+                &#x1F4BE; Save Template
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% raw %}<script>
+    function openPromptModal(mode, index) {
+        const modal = document.getElementById('prompt-modal');
+        const title = document.getElementById('prompt-modal-title');
+        const vHistory = document.getElementById('version-history-section');
+
+        if (mode === 'edit') {
+            title.textContent = 'Edit Prompt Template';
+            vHistory.style.display = 'block';
+        } else {
+            title.textContent = 'Create Prompt Template';
+            vHistory.style.display = 'none';
+        }
+        modal.classList.add('active');
+    }
+
+    function closePromptModal() {
+        document.getElementById('prompt-modal').classList.remove('active');
+    }
+
+    function detectVariables() {
+        const body = document.getElementById('tpl-body').value;
+        const matches = body.match(/\{\{(\w+)\}\}/g) || [];
+        const vars = [...new Set(matches.map(m => m.replace(/\{\{|\}\}/g, '')))];
+        const container = document.getElementById('tpl-variables');
+
+        if (vars.length === 0) {
+            container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.82rem; padding: 8px;">No variables detected yet...</div>';
+            return;
+        }
+
+        container.innerHTML = vars.map(v => `
+            <div class="variable-item">
+                <span class="variable-name">{{${v}}}</span>
+                <input type="text" class="form-input" placeholder="Sample value for ${v}..." style="padding: 6px 10px; font-size: 0.8rem;"
+                    oninput="updatePreview()" data-var="${v}">
+            </div>
+        `).join('');
+    }
+
+    function updatePreview() {
+        const body = document.getElementById('tpl-body').value;
+        if (!body) {
+            document.getElementById('tpl-preview').innerHTML = '<span style="color: var(--text-muted);">Template preview will appear here...</span>';
+            return;
+        }
+
+        let preview = escapeHtml(body);
+        const varInputs = document.querySelectorAll('#tpl-variables input[data-var]');
+        varInputs.forEach(input => {
+            const varName = input.dataset.var;
+            const value = input.value || `<span class="var-highlight">{{${varName}}}</span>`;
+            preview = preview.replace(new RegExp(`\\{\\{${varName}\\}\\}`, 'g'),
+                input.value ? `<strong style="color: var(--green);">${escapeHtml(input.value)}</strong>` : `<span class="var-highlight">{{${varName}}}</span>`);
+        });
+
+        document.getElementById('tpl-preview').innerHTML = preview.replace(/\n/g, '<br>');
+    }
+
+    function handleTagInput(event) {
+        if (event.key === 'Enter' && event.target.value.trim()) {
+            event.preventDefault();
+            const tag = event.target.value.trim();
+            const container = document.getElementById('tpl-tags-container');
+            const chip = document.createElement('span');
+            chip.className = 'chip';
+            chip.innerHTML = `${escapeHtml(tag)} <button class="chip-remove" onclick="this.parentElement.remove()">&times;</button>`;
+            container.insertBefore(chip, event.target);
+            event.target.value = '';
+        }
+    }
+
+    function switchVariant(variant, tab) {
+        document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+    }
+
+    function savePromptTemplate() {
+        showToast('Prompt template saved successfully', 'success');
+        closePromptModal();
+    }
+
+    function testPrompt(index) {
+        showToast('Opening playground with this prompt...', 'info');
+        window.location.href = '/playground';
+    }
+
+    function duplicatePrompt(index) {
+        showToast('Prompt template duplicated', 'success');
+    }
+
+    function deletePrompt(index) {
+        if (confirm('Are you sure you want to delete this prompt template?')) {
+            showToast('Prompt template deleted', 'info');
+        }
+    }
+
+    function filterPrompts() {
+        const query = document.getElementById('prompt-search').value.toLowerCase();
+        document.querySelectorAll('.prompt-card').forEach(card => {
+            const text = card.textContent.toLowerCase();
+            card.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+</script>{% endraw %}
+{% endblock %}
