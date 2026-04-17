@@ -1424,6 +1424,16 @@
         background: rgba(10,14,23,0.92); backdrop-filter: blur(16px);
         border-bottom: 1px solid rgba(255,255,255,0.06);
     ">
+        <!-- Sidebar toggle button -->
+        <button onclick="toggleSidebar()" id="sidebarToggleBtn" title="Toggle sidebar" style="
+            background: none; border: 1px solid rgba(255,255,255,0.1); color: #94a3b8;
+            width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 16px;
+            display: flex; align-items: center; justify-content: center; margin-right: 8px;
+            transition: all 0.2s;
+        " onmouseover="this.style.borderColor='rgba(168,85,247,0.4)';this.style.color='#c084fc';this.style.background='rgba(168,85,247,0.1)'"
+           onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='#94a3b8';this.style.background='none'">
+            &#9776;
+        </button>
         <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;margin-right:16px;">
             <img src="/static/logo.svg" alt="Logo" style="width:26px;height:26px;">
             <span style="font-size:15px;font-weight:800;background:linear-gradient(135deg,#a855f7,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">LLM O11y</span>
@@ -1460,6 +1470,11 @@
             color: white !important; border-color: transparent !important;
             box-shadow: 0 4px 16px rgba(168,85,247,0.3);
         }
+        /* Sidebar collapse transitions */
+        .layout { transition: grid-template-columns 0.3s cubic-bezier(0.4,0,0.2,1); }
+        .layout.sidebar-collapsed { grid-template-columns: 0px 1fr; }
+        .sidebar { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease; overflow: hidden; }
+        .layout.sidebar-collapsed .sidebar { transform: translateX(-100%); opacity: 0; pointer-events: none; }
     </style>
 
     <div class="layout" style="padding-top: 52px;">
@@ -1564,6 +1579,27 @@
 
     <script src="/static/app.js"></script>
     <script>
+        // ── Sidebar toggle (like Grafana) ──
+        function toggleSidebar() {
+            var layout = document.querySelector('.layout');
+            var btn = document.getElementById('sidebarToggleBtn');
+            layout.classList.toggle('sidebar-collapsed');
+            var collapsed = layout.classList.contains('sidebar-collapsed');
+            btn.innerHTML = collapsed ? '&#9654;' : '&#9776;';
+            btn.title = collapsed ? 'Show sidebar' : 'Hide sidebar';
+            // Remember preference
+            localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+        }
+        // Restore sidebar state from localStorage
+        (function() {
+            if (localStorage.getItem('sidebar-collapsed') === '1') {
+                var layout = document.querySelector('.layout');
+                var btn = document.getElementById('sidebarToggleBtn');
+                if (layout) { layout.classList.add('sidebar-collapsed'); }
+                if (btn) { btn.innerHTML = '&#9654;'; btn.title = 'Show sidebar'; }
+            }
+        })();
+
         // Update header clock
         function updateClock() {
             const el = document.getElementById('header-clock');
