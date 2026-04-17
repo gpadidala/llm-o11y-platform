@@ -1,285 +1,647 @@
 <p align="center">
-  <h1 align="center">LLM O11y Platform</h1>
-  <p align="center">
-    <strong>Open-Source Unified AI Gateway & Observability Platform</strong>
-  </p>
-  <p align="center">
-    Production-grade AI gateway with intelligent routing, prompt management, guardrails,<br/>
-    evaluation engine, virtual keys, and full-stack observability — for every major LLM provider.
-  </p>
+  <img src="docs/screenshots/01-dashboard.png" alt="LLM O11y Platform Dashboard" width="800"/>
+</p>
+
+<h1 align="center">LLM O11y Platform</h1>
+
+<p align="center">
+  <strong>Open-Source Unified AI Gateway, Observability & Intelligence Platform</strong>
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> &bull;
-  <a href="#architecture">Architecture</a> &bull;
-  <a href="#features">Features</a> &bull;
-  <a href="#web-ui">Web UI</a> &bull;
-  <a href="#api-reference">API Reference</a> &bull;
-  <a href="#grafana-dashboards">Dashboards</a> &bull;
-  <a href="#deployment">Deployment</a>
+  Production-grade AI gateway with intelligent routing, prompt management, guardrails,<br/>
+  LLM-as-judge evaluation, virtual API keys, and full-stack observability<br/>
+  powered by the Grafana LGTM Stack &amp; OpenTelemetry.
+</p>
+
+<p align="center">
+  <a href="https://github.com/gpadidala/llm-o11y-platform/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"/></a>
+  <img src="https://img.shields.io/badge/python-%3E%3D3.11-brightgreen.svg" alt="Python >=3.11"/>
+  <img src="https://img.shields.io/badge/FastAPI-0.115-009688.svg" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/Grafana-10.4-F46800.svg" alt="Grafana 10.4"/>
+  <img src="https://img.shields.io/badge/OpenTelemetry-1.29-4B0082.svg" alt="OTel"/>
+  <img src="https://img.shields.io/badge/dashboards-19-purple.svg" alt="19 Dashboards"/>
+  <img src="https://img.shields.io/badge/providers-6-blue.svg" alt="6 Providers"/>
+  <img src="https://img.shields.io/badge/models-16+-green.svg" alt="16+ Models"/>
+  <a href="https://github.com/gpadidala/llm-o11y-platform"><img src="https://img.shields.io/github/last-commit/gpadidala/llm-o11y-platform" alt="Last Commit"/></a>
+  <a href="https://github.com/gpadidala/llm-o11y-platform/stargazers"><img src="https://img.shields.io/github/stars/gpadidala/llm-o11y-platform" alt="Stars"/></a>
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"/>
+  <img src="https://img.shields.io/badge/made%20with-%E2%9D%A4-red.svg" alt="Made with Love"/>
+</p>
+
+<p align="center">
+  <a href="#-quick-start">Quick Start</a> &bull;
+  <a href="#%EF%B8%8F-architecture">Architecture</a> &bull;
+  <a href="#-key-features">Features</a> &bull;
+  <a href="#-screenshots">Screenshots</a> &bull;
+  <a href="#-api-reference">API Reference</a> &bull;
+  <a href="#-grafana-dashboards">Dashboards</a> &bull;
+  <a href="#-deployment">Deployment</a>
 </p>
 
 ---
 
-## Why This Platform
+## 🤔 Why This Platform?
 
-Modern AI applications use multiple LLM providers, each with different APIs, pricing, latency profiles, and failure modes. Managing this complexity across teams — with cost control, safety guardrails, prompt versioning, and deep observability — requires a unified control plane.
+Modern AI applications face a fragmented landscape:
 
-**This platform provides:**
+- **Multiple LLM providers** — each with different APIs, pricing, rate limits, and failure modes
+- **No unified control plane** — teams manage API keys, budgets, and routing manually
+- **Cost blindspots** — token spend is invisible until the invoice arrives
+- **No safety guardrails** — PII leaks, prompt injection, and toxic outputs go unchecked
+- **Prompt chaos** — hard-coded prompts scattered across codebases with no versioning
+- **Quality gaps** — no systematic way to evaluate LLM output quality at scale
+- **Observability debt** — traces, metrics, and logs disconnected across tools
 
-- **Single API** for 6 providers and 16+ models with automatic cost tracking
-- **Intelligent routing** that optimizes for cost, latency, or reliability
-- **Built-in guardrails** with PII detection, content safety, and output validation
-- **Prompt versioning** with A/B testing and a template studio
-- **LLM-as-judge evaluation** for automated quality scoring
-- **Virtual API keys** with per-key budgets, rate limits, and permissions
-- **Full-stack observability** via OpenTelemetry, Grafana, Tempo, Prometheus, and Loki
-- **19 Grafana dashboards** covering reliability engineering, cost intelligence, and agent sessions
-
-All open-source. Self-hosted. Zero vendor lock-in.
+**This platform solves all of these** with a single self-hosted open-source solution.
 
 ---
 
-## Quick Start
+## ✨ Key Features
 
-### Prerequisites
+### ⚡ AI Gateway Engine
+- **Unified API** — OpenAI-compatible endpoint for 6 providers, 16+ models — zero code changes
+- **Intelligent Routing** — 6 strategies: single, fallback, load-balance, cost-optimized, latency-optimized, canary
+- **Response Caching** — Simple (SHA-256 exact match) + Semantic (trigram cosine similarity)
+- **Rate Limiting** — Multi-dimensional token buckets: RPM, RPH, RPD, TPM, TPD, max concurrent
+- **Circuit Breaker** — Per-provider 3-state machine (Closed/Open/Half-Open) with auto-recovery
+- **Retry Logic** — Exponential backoff with full jitter for transient failures
+- **Virtual Keys** — `sk-llmo-xxx` format keys with per-key budgets, provider/model permissions, team ownership
 
-- Docker & Docker Compose
-- (Optional) LLM provider API keys
+### 🧠 Prompt Management
+- **Template Store** — Version-controlled prompt templates with `{{variable}}` interpolation
+- **A/B Testing** — Create named variants for split-testing different prompt strategies
+- **Live Testing** — Test templates against live models from the Prompt Studio UI
+- **Auto-detection** — Variables are automatically parsed from template content
 
-### 1. Clone and configure
+### 🛡️ Guardrails Engine
+- **PII Detection** — 18 regex patterns: email, phone, SSN, credit cards, IP, API keys, addresses
+- **PII Redaction** — `[EMAIL_REDACTED]`, `[SSN_REDACTED]`, etc.
+- **Content Safety** — Pattern-based harmful content detection
+- **Topic Restriction** — Block specific topics with word-boundary matching
+- **Output Validation** — JSON schema validation, regex matching, length limits
+
+### 📊 Evaluation Engine
+- **LLM-as-Judge** — Automated quality scoring using a judge LLM
+- **6 Criteria** — Relevance, Faithfulness, Helpfulness, Coherence, Toxicity, Custom
+- **Batch Evaluation** — Run evaluations across entire datasets with concurrency control
+- **Dataset Management** — Store and manage evaluation test sets
+
+### 🔭 Full-Stack Observability
+- **OpenTelemetry** — Traces + 8 custom metrics + structured logs via OTLP
+- **19 Grafana Dashboards** — Per-provider, KPI, QoS, reliability, cost intelligence, model comparison, agent sessions
+- **MCP Tracing** — Tool call ingestion, session tracking, cost attribution
+- **GenAI Semantic Conventions** — Spans follow OTel GenAI standards
+
+### 🎨 Next-Gen Web UI
+- **10 Pages** — Dashboard, Playground, Prompt Studio, Request Explorer, API Keys, Evaluation, Guardrails, Routing, Providers, Settings
+- **Dark Theme** — Glassmorphism effects, vibrant gradients, SVG sparkline charts
+- **Real-time** — Live service health, auto-refreshing stats, streaming request feeds
+
+---
+
+## 🆚 Why Not Alternatives?
+
+| Capability | **LLM O11y Platform** | Commercial Gateways | Basic Proxies | Manual Management |
+|:-----------|:---------------------:|:-------------------:|:------------:|:-----------------:|
+| Unified multi-provider API | ✅ | ✅ | ✅ | ❌ |
+| 6 routing strategies | ✅ | Partial | ❌ | ❌ |
+| Response caching (simple + semantic) | ✅ | Partial | ❌ | ❌ |
+| Virtual keys with budgets | ✅ | ✅ | ❌ | ❌ |
+| PII detection & redaction | ✅ | ✅ | ❌ | ❌ |
+| Prompt versioning + A/B testing | ✅ | Partial | ❌ | ❌ |
+| LLM-as-judge evaluation | ✅ | ❌ | ❌ | ❌ |
+| Circuit breaker + rate limiting | ✅ | ✅ | ❌ | ❌ |
+| 19 Grafana dashboards | ✅ | ❌ | ❌ | ❌ |
+| Full OTel traces + metrics + logs | ✅ | Partial | ❌ | ❌ |
+| MCP tool call tracing | ✅ | ❌ | ❌ | ❌ |
+| Self-hosted / open-source | ✅ | ❌ | ✅ | ✅ |
+| No vendor lock-in | ✅ | ❌ | ✅ | ✅ |
+
+---
+
+## 📸 Screenshots
+
+### Analytics Dashboard
+> Real-time stats with sparkline charts, cost breakdown donut, request feed, and provider health grid.
+
+<img src="docs/screenshots/01-dashboard.png" alt="Dashboard" width="800"/>
+
+---
+
+### AI Playground
+> Test prompts across providers with parameter sliders. Compare Mode enables side-by-side model testing.
+
+<img src="docs/screenshots/02-playground.png" alt="AI Playground" width="800"/>
+
+---
+
+### Prompt Studio
+> Version-controlled templates with `{{variable}}` detection, A/B variants, and live preview.
+
+<img src="docs/screenshots/03-prompts.png" alt="Prompt Studio" width="800"/>
+
+---
+
+### Request Explorer
+> Searchable request logs with provider, model, and status filters. Expandable rows show full request/response details.
+
+<img src="docs/screenshots/04-logs.png" alt="Request Explorer" width="800"/>
+
+---
+
+### Evaluation Dashboard
+> Run LLM-as-judge evaluations with animated score bars. Batch eval across datasets.
+
+<img src="docs/screenshots/05-eval.png" alt="Evaluation" width="800"/>
+
+---
+
+### Virtual Key Management
+> Create `sk-llmo-xxx` keys with budget gauges, rate limit indicators, and team ownership.
+
+<img src="docs/screenshots/06-keys.png" alt="API Keys" width="800"/>
+
+---
+
+### Guardrails Configuration
+> Toggle PII detection, content safety, topic restriction. Live test panel with highlighted PII matches.
+
+<img src="docs/screenshots/07-guardrails.png" alt="Guardrails" width="800"/>
+
+---
+
+### Routing Configuration
+> Visual strategy cards (Cost Optimized, Latency, Canary, etc.), dynamic targets, circuit breaker status.
+
+<img src="docs/screenshots/08-routing.png" alt="Routing" width="800"/>
+
+---
+
+### Provider Status
+> Per-provider health, latency, error rate, and configured model count.
+
+<img src="docs/screenshots/09-providers.png" alt="Providers" width="800"/>
+
+---
+
+### Settings
+> Configure API keys for all 6 providers, MCP server URLs, and gateway parameters.
+
+<img src="docs/screenshots/10-settings.png" alt="Settings" width="800"/>
+
+---
+
+### Grafana — KPI Scorecard
+> 25-panel KPI dashboard with availability, performance, cost efficiency, and cross-provider comparison.
+
+<img src="docs/screenshots/12-grafana-kpi.png" alt="Grafana KPI Dashboard" width="800"/>
+
+---
+
+### Grafana — Cost Intelligence
+> Cost forecasting, budget tracking, anomaly detection with 2-sigma bands, and daily heatmaps.
+
+<img src="docs/screenshots/13-grafana-cost-intel.png" alt="Grafana Cost Intelligence" width="800"/>
+
+---
+
+### Grafana — Reliability Engineering
+> SLI/SLO tracking, error budget burn rate, anomaly Z-scores, circuit breaker state timeline.
+
+<img src="docs/screenshots/14-grafana-reliability.png" alt="Grafana Reliability" width="800"/>
+
+---
+
+## 🏛️ Architecture
+
+### Platform Layer Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  🟣  USER LAYER                                                            │
+│                                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │ Dashboard│  │Playground│  │  Prompt  │  │ Request  │  │  API     │     │
+│  │  Home    │  │ Compare  │  │  Studio  │  │ Explorer │  │  Keys    │     │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘     │
+│       │              │              │              │              │          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │  Eval    │  │Guardrails│  │ Routing  │  │ Provider │  │ Settings │     │
+│  │Dashboard │  │  Config  │  │ Builder  │  │  Status  │  │   Page   │     │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  🔵  API LAYER                                FastAPI + Uvicorn             │
+│                                                                             │
+│  /v1/chat/completions    /api/keys    /api/prompts    /api/eval             │
+│  /v1/mcp/*               /api/logs    /api/guardrails /api/routing          │
+│  /v1/models              /api/cache   /api/settings   /api/status           │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  🟠  GATEWAY ENGINE LAYER                                                   │
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                     Gateway Middleware Pipeline                      │   │
+│  │  Auth → RateLimit → Cache → CircuitBreaker → Route → Retry → Exec  │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │ Routing  │  │  Cache   │  │   Rate   │  │ Circuit  │  │ Virtual  │     │
+│  │ Engine   │  │ Engine   │  │ Limiter  │  │ Breaker  │  │  Keys    │     │
+│  │ 6 strats │  │Simple+Sem│  │Token Buck│  │ 3-state  │  │ Budgets  │     │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  🩷  INTELLIGENCE LAYER                                                     │
+│                                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │ Prompt   │  │Guardrails│  │   Eval   │  │   MCP    │  │   OTel   │     │
+│  │  Store   │  │  Engine  │  │  Judge   │  │  Tracer  │  │ Emitter  │     │
+│  │Version+AB│  │PII+Safety│  │6 Criteria│  │ Sessions │  │Spans+Metr│     │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  🟢  PROVIDER LAYER                                                         │
+│                                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │  OpenAI  │  │Anthropic │  │Vertex AI │  │ Bedrock  │  │  Cohere  │     │
+│  │ GPT-4o   │  │  Claude  │  │  Gemini  │  │  Claude  │  │Command R │     │
+│  │ o1       │  │  Opus    │  │  Flash   │  │  Llama   │  │Command R+│     │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  🔴  OBSERVABILITY LAYER                      Grafana LGTM Stack            │
+│                                                                             │
+│  ┌────────────────────┐  ┌──────────────┐  ┌───────────┐  ┌────────────┐   │
+│  │  OTel Collector    │  │   Grafana    │  │  Grafana  │  │    19      │   │
+│  │  OTLP → batch →   │──│    Tempo     │  │   Loki    │  │ Dashboards │   │
+│  │  export            │  │   (Traces)   │  │  (Logs)   │  │   in       │   │
+│  │                    │──│  Prometheus  │──│           │──│  Grafana   │   │
+│  └────────────────────┘  └──────────────┘  └───────────┘  └────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### End-to-End Request Flow
+
+```
+┌──────────┐     ┌────────────────────────────────────────────────────┐
+│  Client  │────▶│  POST /v1/chat/completions                        │
+│  (App)   │     │  Authorization: Bearer sk-llmo-xxxxx              │
+└──────────┘     └──────────────┬─────────────────────────────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  1. VIRTUAL KEY AUTH        │  Validate key, check budget,
+                 │     VirtualKeyManager       │  check permissions
+                 └──────────────┬──────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  2. RATE LIMITER            │  Token bucket + sliding window
+                 │     RPM/RPH/RPD/TPM/TPD     │  (per-key or global)
+                 └──────────────┬──────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  3. GUARDRAILS (Input)      │  PII detection, content safety,
+                 │     18 PII patterns          │  topic restriction
+                 └──────────────┬──────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  4. CACHE CHECK             │  SHA-256 exact match or
+                 │     Simple / Semantic        │  trigram cosine similarity
+                 │                              │  → HIT: return cached response
+                 └──────────────┬──────────────┘
+                                │ (MISS)
+                 ┌──────────────▼──────────────┐
+                 │  5. CIRCUIT BREAKER         │  Check provider health
+                 │     CLOSED/OPEN/HALF_OPEN    │  → OPEN: try fallback target
+                 └──────────────┬──────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  6. ROUTING ENGINE          │  Select target via strategy:
+                 │     Cost / Latency / Canary  │  cost, latency, fallback, etc.
+                 └──────────────┬──────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  7. RETRY WITH BACKOFF      │  Exponential backoff + jitter
+                 │     Max 3 retries            │  on transient errors (429, 5xx)
+                 └──────────────┬──────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  8. PROVIDER ADAPTER        │  Translate to native API:
+                 │     OpenAI / Anthropic /     │  openai.chat.completions
+                 │     Vertex / Bedrock / Cohere│  anthropic.messages
+                 └──────────────┬──────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  9. CACHE STORE             │  Store response for future
+                 │     TTL: 1 hour default      │  requests (if caching enabled)
+                 └──────────────┬──────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  10. OTEL EMIT              │  Trace span (GenAI semantic)
+                 │      Traces → Tempo          │  + 8 custom metrics
+                 │      Metrics → Prometheus    │  + structured JSON log
+                 │      Logs → Loki             │
+                 └──────────────┬──────────────┘
+                                │
+                 ┌──────────────▼──────────────┐
+                 │  Response to Client         │
+                 │  Headers:                    │
+                 │    X-Request-ID              │
+                 │    X-Cache-Status: HIT/MISS  │
+                 │    X-Provider: openai         │
+                 │    X-Latency-Ms: 432          │
+                 └─────────────────────────────┘
+```
+
+### Observability Data Flow
+
+```
+┌──────────────────────┐
+│   LLM O11y Gateway   │
+│                       │
+│  OTel SDK             │
+│  ├── Traces (spans)   │──── OTLP gRPC ────┐
+│  ├── Metrics (8)      │──── OTLP gRPC ────┤
+│  └── Logs (JSON)      │──── OTLP gRPC ────┤
+└───────────────────────┘                    │
+                                              │
+                               ┌──────────────▼──────────────┐
+                               │   OpenTelemetry Collector    │
+                               │                              │
+                               │   Receivers: OTLP gRPC/HTTP  │
+                               │   Processors:                 │
+                               │     • memory_limiter (512MB)  │
+                               │     • batch (5s / 512 items)  │
+                               │     • resource (namespace)    │
+                               │                              │
+                               │   Pipelines:                  │
+                               │     traces  → Tempo           │
+                               │     metrics → Prometheus      │
+                               │     logs    → Loki            │
+                               └──┬──────────┬──────────┬─────┘
+                                  │          │          │
+                    ┌─────────────▼┐  ┌──────▼──────┐  ┌▼───────────┐
+                    │ Grafana Tempo│  │ Prometheus  │  │Grafana Loki│
+                    │              │  │             │  │            │
+                    │ Distributed  │  │ 9 LLM/MCP  │  │ Structured │
+                    │ traces with  │  │ metric      │  │ JSON logs  │
+                    │ GenAI attrs  │  │ families    │  │ with trace │
+                    │              │  │             │  │ correlation│
+                    └──────┬───────┘  └──────┬──────┘  └─────┬──────┘
+                           │                 │               │
+                           └─────────────────┼───────────────┘
+                                             │
+                                    ┌────────▼────────┐
+                                    │     Grafana     │
+                                    │                 │
+                                    │  19 Dashboards  │
+                                    │  Cross-linked   │
+                                    │  Auto-provisioned│
+                                    └─────────────────┘
+```
+
+---
+
+## 🚀 Quick Start
+
+### Option 1: Docker Compose (60 seconds)
 
 ```bash
 git clone https://github.com/gpadidala/llm-o11y-platform.git
 cd llm-o11y-platform
 cp .env.example .env
-# Edit .env with your API keys (optional — the platform runs without them)
-```
-
-### 2. Start the stack
-
-```bash
 docker compose up -d
 ```
 
-This starts 6 services:
+Open http://localhost:8080 and you're running.
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| **Gateway** | [localhost:8080](http://localhost:8080) | AI Gateway + Web UI |
-| **Grafana** | [localhost:3001](http://localhost:3001) | Dashboards (admin / llm-o11y) |
-| **Prometheus** | [localhost:9091](http://localhost:9091) | Metrics database |
-| **Tempo** | [localhost:3202](http://localhost:3202) | Distributed tracing |
-| **Loki** | [localhost:3100](http://localhost:3100) | Log aggregation |
-| **OTel Collector** | localhost:4317/4318 | Telemetry pipeline |
-
-### 3. Verify
+### Option 2: Manual Setup (~3 minutes)
 
 ```bash
+# 1. Clone
+git clone https://github.com/gpadidala/llm-o11y-platform.git
+cd llm-o11y-platform
+
+# 2. Create virtual environment
+python3 -m venv .venv && source .venv/bin/activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Configure
+cp .env.example .env
+# Edit .env with your API keys
+
+# 5. Run
+uvicorn src.app:app --host 0.0.0.0 --port 8080
+```
+
+### Service URLs
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **Platform UI** | http://localhost:8080 | — |
+| **API Docs (Swagger)** | http://localhost:8080/docs | — |
+| **Grafana** | http://localhost:3001 | admin / llm-o11y |
+| **Prometheus** | http://localhost:9091 | — |
+| **Tempo** | http://localhost:3202 | — |
+| **Loki** | http://localhost:3100 | — |
+
+### Verify Everything Works
+
+```bash
+# Health check
 curl http://localhost:8080/health
-# {"status": "healthy", "service": "llm-o11y-gateway"}
-```
 
-### 4. Open the UI
+# Check all subsystems
+curl http://localhost:8080/api/status
 
-```bash
-open http://localhost:8080
-```
+# Test a chat completion (with your API key configured)
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hello!"}],"provider":"openai"}'
 
-### 5. Run smoke tests
+# Test PII redaction
+curl -X POST http://localhost:8080/api/guardrails/redact \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Email me at john@example.com, SSN 123-45-6789"}'
 
-```bash
+# Run smoke tests
 bash scripts/test-gateway.sh
 ```
 
 ---
 
-## Architecture
+## 📡 API Reference
 
-```
-                         Your Applications
-                    (Apps, Agents, MCP Clients)
-                               |
-                    OpenAI-compatible API
-                               |
-   +---------------------------v-----------------------------+
-   |              LLM O11y Gateway (FastAPI)                 |
-   |                                                         |
-   |  +---------------------------------------------------+  |
-   |  |              Gateway Pipeline                      |  |
-   |  |  Auth -> RateLimit -> Cache -> CircuitBreaker ->   |  |
-   |  |  Route -> Retry -> Provider -> Cache(store) -> Log |  |
-   |  +---------------------------------------------------+  |
-   |                                                         |
-   |  +-----------+ +------------+ +-----------+ +--------+  |
-   |  | Routing   | | Cache      | | Rate      | | Circuit|  |
-   |  | Engine    | | Engine     | | Limiter   | | Breaker|  |
-   |  | 6 strats  | | Simple +   | | Token     | | 3-state|  |
-   |  |           | | Semantic   | | Bucket    | | per-   |  |
-   |  |           | |            | | + Sliding  | | provider|  |
-   |  +-----------+ +------------+ +-----------+ +--------+  |
-   |                                                         |
-   |  +-----------+ +------------+ +-----------+ +--------+  |
-   |  | Virtual   | | Prompt     | | Guardrails| | Eval   |  |
-   |  | Keys      | | Store      | | Engine    | | Judge  |  |
-   |  | Budgets + | | Versioned  | | PII + Safety| | LLM-as|  |
-   |  | Perms     | | Templates  | | + Validation| | -judge|  |
-   |  +-----------+ +------------+ +-----------+ +--------+  |
-   |                                                         |
-   |  +-----------+ +------------+ +-----------+ +--------+  |
-   |  | Provider  | | Provider   | | Provider  | | Provider|  |
-   |  | OpenAI    | | Anthropic  | | Vertex AI | | Bedrock|  |
-   |  | Azure     | | Cohere     | |           | |        |  |
-   |  +-----------+ +------------+ +-----------+ +--------+  |
-   |                                                         |
-   |  +---------------------------------------------------+  |
-   |  |  OTel Instrumentation (Traces + Metrics + Logs)    |  |
-   |  +---------------------------------------------------+  |
-   +----------------------------|----------------------------+
-                                | OTLP (gRPC)
-                                v
-   +------------------------------------------------------------+
-   |               OpenTelemetry Collector                       |
-   |          (batch, memory_limiter, resource)                  |
-   +--------+-----------------+-----------------+---------------+
-            |                 |                 |
-            v                 v                 v
-   +--------------+  +----------------+  +---------------+
-   | Grafana Tempo|  |  Prometheus    |  | Grafana Loki  |
-   |  (Traces)    |  |  (Metrics)     |  |   (Logs)      |
-   +-------+------+  +-------+--------+  +-------+-------+
-           |                  |                   |
-           +------------------+-------------------+
-                              |
-                 +------------v-----------+
-                 |        Grafana         |
-                 |   19 Dashboards        |
-                 |   Single Pane of Glass |
-                 +------------------------+
+### Gateway API (OpenAI-Compatible)
+
+Point your app's `base_url` at the gateway — zero code changes:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8080/v1",
+    api_key="sk-llmo-your-virtual-key",  # or provider key
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}],
+    extra_body={
+        "provider": "openai",
+        "cache_mode": "simple",          # none, simple, semantic
+        "routing_strategy": "cost",      # single, fallback, loadbalance, cost, latency, canary
+        "user_id": "user-123",
+        "tags": {"team": "ml-platform"},
+    },
+)
 ```
 
-### Request Flow
+### Complete API Endpoint Reference
 
-```
-Client Request
-     |
-     v
-[Virtual Key Auth] -- Validates sk-llmo-xxx key, checks budget/permissions
-     |
-     v
-[Rate Limiter] -- Token bucket + sliding window (RPM/RPH/RPD/TPM/TPD)
-     |
-     v
-[Cache Check] -- SHA-256 exact match or trigram semantic similarity
-     |
-     v (cache miss)
-[Circuit Breaker] -- Checks provider health (CLOSED/OPEN/HALF_OPEN)
-     |
-     v
-[Routing Engine] -- Selects target via strategy (cost/latency/fallback/canary)
-     |
-     v
-[Retry with Backoff] -- Exponential backoff with jitter on transient failures
-     |
-     v
-[Provider Adapter] -- Translates to provider-native API (OpenAI/Anthropic/etc)
-     |
-     v
-[Cache Store] -- Caches response for future requests
-     |
-     v
-[OTel Emit] -- Traces (Tempo) + Metrics (Prometheus) + Logs (Loki)
-     |
-     v
-Response to Client
-```
+<details>
+<summary><strong>Click to expand — 50+ endpoints</strong></summary>
+
+#### Gateway Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/v1/chat/completions` | OpenAI-compatible chat completions with full gateway pipeline |
+| GET | `/v1/models` | List all supported models across providers |
+
+#### Virtual Keys
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/keys` | Create virtual key with budget and permissions |
+| GET | `/api/keys` | List all virtual keys |
+| GET | `/api/keys/{id}` | Get key details |
+| DELETE | `/api/keys/{id}` | Revoke a key |
+| GET | `/api/keys/{id}/usage` | Get budget/usage stats |
+
+#### Prompt Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/prompts` | Create prompt template |
+| GET | `/api/prompts` | List templates (tag filter) |
+| GET | `/api/prompts/{id}` | Get template |
+| PUT | `/api/prompts/{id}` | Update template (new version) |
+| DELETE | `/api/prompts/{id}` | Delete template |
+| POST | `/api/prompts/{id}/render` | Render with variables |
+| GET | `/api/prompts/{id}/versions` | Version history |
+| POST | `/api/prompts/{id}/test` | Test against live model |
+
+#### Guardrails
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/guardrails/check-input` | Check input messages |
+| POST | `/api/guardrails/check-output` | Check output content |
+| POST | `/api/guardrails/redact` | Redact PII from text |
+| GET | `/api/guardrails/config` | Get guardrail config |
+| PUT | `/api/guardrails/config` | Update guardrail config |
+
+#### Evaluation
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/eval/run` | Single evaluation |
+| POST | `/api/eval/batch` | Batch eval on dataset |
+| GET | `/api/eval/results` | Get results (filtered) |
+| GET | `/api/eval/stats` | Aggregate statistics |
+| POST | `/api/eval/datasets` | Create dataset |
+| GET | `/api/eval/datasets` | List datasets |
+| GET | `/api/eval/datasets/{id}` | Get dataset |
+| POST | `/api/eval/datasets/{id}/entries` | Add entries |
+| DELETE | `/api/eval/datasets/{id}` | Delete dataset |
+
+#### MCP Telemetry
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/v1/mcp/tool-call` | Ingest tool call record |
+| POST | `/v1/mcp/session/start` | Start MCP session |
+| POST | `/v1/mcp/session/end` | End session (aggregated span) |
+
+#### Routing & Cache
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/routing/config` | Get routing strategy |
+| PUT | `/api/routing/config` | Update routing config |
+| GET | `/api/routing/stats` | Routing performance stats |
+| GET | `/api/routing/circuit-breaker` | Circuit breaker states |
+| GET | `/api/cache/stats` | Cache hit/miss/eviction stats |
+| POST | `/api/cache/clear` | Clear all cached responses |
+
+#### System
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Liveness probe |
+| GET | `/metrics` | Prometheus scrape endpoint |
+| GET | `/api/status` | Backend service health |
+| GET | `/api/dashboard/stats` | Aggregated dashboard stats |
+| GET | `/api/settings` | Get settings (secrets redacted) |
+| POST | `/api/settings` | Save settings to .env |
+| GET | `/api/logs` | Request logs (paginated) |
+| GET | `/api/logs/{request_id}` | Specific request detail |
+
+</details>
 
 ---
 
-## Features
+## 📊 Grafana Dashboards
 
-### AI Gateway Engine
+19 pre-provisioned dashboards auto-loaded into the "LLM Observability" folder.
 
-| Feature | Description |
-|---------|-------------|
-| **Intelligent Routing** | 6 strategies: Single, Fallback, Load Balance, Cost-Optimized, Latency-Optimized, Canary |
-| **Response Caching** | Simple (exact SHA-256 match) and Semantic (trigram cosine similarity @ 0.85 threshold) |
-| **Rate Limiting** | Multi-dimensional: requests per minute/hour/day, tokens per minute/day, max concurrent |
-| **Circuit Breaker** | Per-provider 3-state machine (Closed/Open/Half-Open) with configurable thresholds |
-| **Retry Logic** | Exponential backoff with full jitter, configurable retryable error patterns |
-| **Virtual Keys** | `sk-llmo-xxx` format keys with budgets, rate limits, provider/model permissions, team ownership |
-| **Middleware Pipeline** | Full request lifecycle: Auth -> RateLimit -> Cache -> CircuitBreaker -> Route -> Retry -> Provider -> Log |
+### Dashboard Catalog
 
-#### Routing Strategies
+| # | Dashboard | Panels | Description |
+|---|-----------|--------|-------------|
+| 1 | **Overview** | 15 | Request rate, error rate, latency percentiles, tokens, cost, MCP |
+| 2 | **Cost & Token Analysis** | 6 | Cost deep-dive, token breakdown, top models |
+| 3 | **Trace Explorer** | 4 | TraceQL search, trace detail, span distribution |
+| 4 | **Advanced Traces** | 13 | Service map, correlated logs, error analysis |
+| 5 | **OpenAI** | 13 | GPT-4o, GPT-4o-mini, o1, o1-mini metrics |
+| 6 | **Anthropic** | 13 | Claude Opus, Sonnet, Haiku metrics |
+| 7 | **Vertex AI (Gemini)** | 13 | Gemini 1.5 Pro/Flash, 2.0 Flash metrics |
+| 8 | **AWS Bedrock** | 13 | Bedrock model metrics |
+| 9 | **Cohere** | 13 | Command R+, Command R metrics |
+| 10 | **KPI Scorecard** | 25 | Availability, performance, cost efficiency, cross-provider comparison |
+| 11 | **Quality of Service** | 18 | SLA compliance, error budgets, capacity planning |
+| 12 | **Reliability Engineering** | 20 | SLI/SLO, error budget burn rate, anomaly Z-scores, circuit breaker timeline |
+| 13 | **Cost Intelligence** | 20 | Forecasting, budget tracking, anomaly detection, daily heatmap |
+| 14 | **Model Comparison** | 20 | Performance matrix, cost matrix, value score, adoption trends |
+| 15 | **Agent & MCP Sessions** | 20 | Tool analytics, session cost, server health |
 
-| Strategy | How It Works |
-|----------|-------------|
-| `single` | Direct to one provider/model |
-| `fallback` | Try providers in priority order, skip if error rate > 50% |
-| `loadbalance` | Weighted round-robin across targets |
-| `cost` | Route to cheapest model using built-in pricing table |
-| `latency` | Route to fastest provider based on rolling P50 latency |
-| `canary` | Split traffic: primary gets (100 - weight)%, canary gets weight% |
+### Telemetry Signals
 
-### Prompt Management
+| Signal | Prometheus Metric | Labels |
+|--------|-------------------|--------|
+| Request count | `llm_requests_total` | provider, model, status |
+| Token usage | `llm_tokens_total` | provider, model, token_type |
+| Cost (USD) | `llm_cost_usd_total` | provider, model |
+| Request latency | `llm_request_duration_milliseconds` | provider, model |
+| Time to first token | `llm_ttft_milliseconds` | provider, model |
+| MCP tool calls | `mcp_tool_calls_total` | server_name, tool_name, status |
+| MCP tool latency | `mcp_tool_duration_milliseconds` | server_name, tool_name |
+| MCP session cost | `mcp_session_cost_usd_total` | session_id, agent_name |
 
-| Feature | Description |
-|---------|-------------|
-| **Template Store** | Create, version, and manage prompt templates with `{{variable}}` interpolation |
-| **Version History** | Every update creates a new version with change notes |
-| **A/B Variants** | Create named template variants for testing different prompt strategies |
-| **Render API** | Render templates with variables via API |
-| **Live Testing** | Test templates against live models directly from the API |
-| **Auto-detection** | Variables like `{{topic}}` are automatically detected from template content |
+---
 
-### Guardrails Engine
-
-| Feature | Description |
-|---------|-------------|
-| **PII Detection** | 18 regex patterns: email, phone (US/UK/intl), SSN, credit cards (Visa/MC/Amex/Discover), IPv4/IPv6, dates, addresses, API keys |
-| **PII Redaction** | Replace detected PII with `[EMAIL_REDACTED]`, `[SSN_REDACTED]`, etc. |
-| **Content Safety** | Pattern-based detection of harmful content |
-| **Topic Restriction** | Block specific topics with word-boundary matching |
-| **Output Validation** | Validate LLM output against JSON schemas or regex patterns |
-| **Custom Rules** | Add custom regex patterns for domain-specific blocking |
-
-#### Detected PII Types
-
-| Type | Examples | Confidence |
-|------|----------|-----------|
-| Email | `user@example.com` | 0.95 |
-| Phone (US) | `(555) 123-4567`, `555-123-4567` | 0.85 |
-| Phone (UK) | `+44 7911 123456` | 0.80 |
-| SSN | `123-45-6789` | 0.90 |
-| Credit Card (Visa) | `4111-1111-1111-1111` | 0.90 |
-| Credit Card (Amex) | `3782-822463-10005` | 0.90 |
-| IPv4 | `192.168.1.1` | 0.80 |
-| API Key (OpenAI) | `sk-xxxxxxxx` | 0.95 |
-| API Key (GitHub) | `ghp_xxxxxxxx` | 0.95 |
-| API Key (AWS) | `AKIA...` | 0.95 |
-
-### Evaluation Engine
-
-| Feature | Description |
-|---------|-------------|
-| **LLM-as-Judge** | Automated quality scoring using an LLM evaluator |
-| **6 Criteria** | Relevance, Faithfulness, Helpfulness, Coherence, Toxicity, Custom |
-| **Batch Evaluation** | Run evaluations across entire datasets with concurrency control |
-| **Dataset Management** | Create, store, and manage evaluation test sets |
-| **Score Analytics** | Distribution analysis, per-criterion breakdowns, trend tracking |
-
-#### Evaluation Criteria
-
-| Criterion | What It Measures | Score Range |
-|-----------|-----------------|-------------|
-| Relevance | How well the response addresses the input | 0.0 - 1.0 |
-| Faithfulness | Accuracy vs reference material | 0.0 - 1.0 |
-| Helpfulness | Practical utility and actionability | 0.0 - 1.0 |
-| Coherence | Logical flow and clarity | 0.0 - 1.0 |
-| Toxicity | Safety (1.0 = completely safe) | 0.0 - 1.0 |
-| Custom | User-defined criterion with custom rubric | 0.0 - 1.0 |
-
-### Supported Providers & Models
+## 🔐 Supported Providers & Models
 
 | Provider | Models | Input / Output (per 1M tokens) |
 |----------|--------|-------------------------------|
@@ -298,648 +660,223 @@ Response to Client
 | **Cohere** | command-r-plus | $2.50 / $10.00 |
 | | command-r | $0.15 / $0.60 |
 
-### MCP Observability
-
-| Feature | Description |
-|---------|-------------|
-| **Tool Call Ingestion** | POST tool call records with latency, token attribution, and cost |
-| **Session Tracking** | Start/end sessions, aggregate tool calls, emit session spans |
-| **@trace_mcp_tool Decorator** | Auto-instrument Python MCP tool functions |
-| **Cost Attribution** | Track per-tool and per-session cost breakdown |
-
 ---
 
-## Web UI
-
-The platform includes a 10-page dark-themed web UI with glassmorphism effects, real-time data, and vibrant gradient accents.
-
-### Pages
-
-| Page | URL | Description |
-|------|-----|-------------|
-| **Dashboard** | `/` | Real-time analytics with stat cards, sparkline charts, provider health, recent requests |
-| **AI Playground** | `/playground` | Interactive LLM testing with parameter sliders, compare mode for side-by-side model testing |
-| **Prompt Studio** | `/prompts` | Template editor with variable detection, version history, A/B variants, live preview |
-| **Request Explorer** | `/logs` | Searchable request logs with filters (provider, model, status), expandable detail panels |
-| **API Keys** | `/keys` | Virtual key management with budget gauges, rate limit indicators, usage sparklines |
-| **Evaluation** | `/eval` | Run evaluations with animated score bars, batch eval on datasets, results table |
-| **Guardrails** | `/guardrails` | Toggle PII detection, content safety, topic restriction; live PII test panel |
-| **Routing** | `/routing` | Visual strategy selection cards, dynamic target configuration, circuit breaker status |
-| **Providers** | `/providers` | Per-provider health, latency, error rate, configured models |
-| **Settings** | `/settings` | API key configuration, MCP server management, gateway settings |
-
-### Design System
-
-- **Theme**: Dark (#0f1117) with vibrant accent colours
-- **Accents**: Purple (AI/primary), Blue (info), Teal (success), Amber (warning), Coral (error)
-- **Effects**: Glassmorphism (`backdrop-filter: blur`), gradient borders, pulse animations
-- **Charts**: Inline SVG sparklines, ring charts, bar charts
-- **Layout**: CSS Grid with responsive breakpoints (1024px, 768px)
-
----
-
-## API Reference
-
-### Gateway API (OpenAI-Compatible)
-
-#### Chat Completions
+## ⚙️ Configuration
 
 ```bash
-POST /v1/chat/completions
-```
-
-Drop-in replacement for the OpenAI API — just change the base URL:
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="http://localhost:8080/v1",
-    api_key="sk-llmo-your-virtual-key",  # or your provider key
-)
-
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Hello!"}],
-    extra_body={
-        "provider": "openai",          # openai, anthropic, vertex_ai, bedrock, cohere
-        "user_id": "user-123",
-        "session_id": "session-456",
-        "cache_mode": "simple",         # none, simple, semantic
-        "routing_strategy": "cost",     # single, fallback, loadbalance, cost, latency, canary
-        "tags": {"team": "ml-platform"},
-    },
-)
-```
-
-**Response headers:**
-
-| Header | Description |
-|--------|-------------|
-| `X-Request-ID` | Unique request identifier for tracing |
-| `X-Cache-Status` | `HIT` or `MISS` |
-| `X-Provider` | Provider that served the request |
-| `X-Latency-Ms` | End-to-end latency in milliseconds |
-
-#### List Models
-
-```bash
-GET /v1/models
-```
-
-Returns all supported models across all providers in OpenAI-compatible format.
-
-### Virtual Keys API
-
-#### Create Key
-
-```bash
-POST /api/keys
-Content-Type: application/json
-
-{
-    "name": "production-key",
-    "owner": "ml-team",
-    "team": "platform",
-    "budget_usd": 100.0,
-    "allowed_providers": ["openai", "anthropic"],
-    "allowed_models": ["gpt-4o-mini", "claude-haiku-4-5"]
-}
-```
-
-Response:
-```json
-{
-    "key": "sk-llmo-a1b2c3d4e5f6...",
-    "key_id": "key_abc123",
-    "name": "production-key"
-}
-```
-
-The raw key is shown **once** — store it securely.
-
-#### List Keys
-
-```bash
-GET /api/keys
-```
-
-#### Revoke Key
-
-```bash
-DELETE /api/keys/{key_id}
-```
-
-### Prompt Management API
-
-#### Create Template
-
-```bash
-POST /api/prompts
-Content-Type: application/json
-
-{
-    "name": "Summarizer",
-    "content": "Summarize the following text in {{style}} style:\n\n{{text}}",
-    "description": "Flexible text summarizer",
-    "tags": ["summarize", "utility"]
-}
-```
-
-Variables (`{{style}}`, `{{text}}`) are auto-detected.
-
-#### Render Template
-
-```bash
-POST /api/prompts/{template_id}/render
-Content-Type: application/json
-
-{
-    "variables": {
-        "style": "bullet-point",
-        "text": "The quick brown fox..."
-    }
-}
-```
-
-#### Test Template
-
-```bash
-POST /api/prompts/{template_id}/test
-Content-Type: application/json
-
-{
-    "variables": {"style": "concise", "text": "..."},
-    "model": "gpt-4o-mini",
-    "provider": "openai"
-}
-```
-
-### Guardrails API
-
-#### Check Input
-
-```bash
-POST /api/guardrails/check-input
-Content-Type: application/json
-
-{
-    "messages": [{"role": "user", "content": "My SSN is 123-45-6789"}],
-    "config": {"enable_pii_detection": true}
-}
-```
-
-#### Redact PII
-
-```bash
-POST /api/guardrails/redact
-Content-Type: application/json
-
-{
-    "text": "Contact john@example.com or call 555-123-4567"
-}
-```
-
-Response:
-```json
-{
-    "redacted_text": "Contact [EMAIL_REDACTED] or call [PHONE_REDACTED]",
-    "pii_found": 2,
-    "matches": [
-        {"pii_type": "email", "value": "john@example.com", "confidence": 0.95},
-        {"pii_type": "phone_us", "value": "555-123-4567", "confidence": 0.85}
-    ]
-}
-```
-
-### Evaluation API
-
-#### Run Evaluation
-
-```bash
-POST /api/eval/run
-Content-Type: application/json
-
-{
-    "input_text": "What is quantum computing?",
-    "output_text": "Quantum computing uses qubits...",
-    "criteria": ["relevance", "helpfulness", "coherence"],
-    "judge_model": "gpt-4o-mini",
-    "judge_provider": "openai"
-}
-```
-
-#### Create Dataset
-
-```bash
-POST /api/eval/datasets
-Content-Type: application/json
-
-{
-    "name": "QA Test Set",
-    "entries": [
-        {"input_text": "What is AI?", "expected_output": "AI is..."},
-        {"input_text": "Explain ML", "expected_output": "Machine learning is..."}
-    ]
-}
-```
-
-#### Batch Evaluation
-
-```bash
-POST /api/eval/batch
-Content-Type: application/json
-
-{
-    "dataset_id": "ds_xxx",
-    "model": "gpt-4o-mini",
-    "provider": "openai",
-    "criteria": ["relevance", "helpfulness"]
-}
-```
-
-### MCP Telemetry API
-
-#### Report Tool Call
-
-```bash
-POST /v1/mcp/tool-call
-Content-Type: application/json
-
-{
-    "server_name": "docs-server",
-    "tool_name": "search_docs",
-    "input_params": {"query": "deployment guide"},
-    "output_data": {"results": ["doc1", "doc2"]},
-    "latency_ms": 120.5,
-    "status": "success",
-    "session_id": "agent-run-001",
-    "attributed_input_tokens": 500,
-    "attributed_output_tokens": 200,
-    "attributed_cost_usd": 0.005
-}
-```
-
-#### Session Lifecycle
-
-```bash
-# Start session
-POST /v1/mcp/session/start
-{"session_id": "agent-001", "agent_name": "research-agent", "user_id": "user-123"}
-
-# ... tool calls happen ...
-
-# End session (emits aggregated span)
-POST /v1/mcp/session/end
-{"session_id": "agent-001"}
-```
-
-### Routing API
-
-#### Get Configuration
-
-```bash
-GET /api/routing/config
-```
-
-#### Update Strategy
-
-```bash
-PUT /api/routing/config
-Content-Type: application/json
-
-{
-    "strategy": "fallback",
-    "targets": [
-        {"provider": "openai", "model": "gpt-4o", "weight": 1.0},
-        {"provider": "anthropic", "model": "claude-sonnet-4-6", "weight": 1.0}
-    ]
-}
-```
-
-#### Circuit Breaker Status
-
-```bash
-GET /api/routing/circuit-breaker
-```
-
-### Cache API
-
-```bash
-GET /api/cache/stats       # Get hit/miss/eviction stats
-POST /api/cache/clear      # Clear all cached responses
-```
-
-### Dashboard Stats API
-
-```bash
-GET /api/dashboard/stats   # Aggregated stats for the UI dashboard
-```
-
-### Python MCP Decorator
-
-```python
-from src.mcp_tracer import trace_mcp_tool
-
-@trace_mcp_tool("my-server", "1.0.0")
-async def search_docs(query: str) -> dict:
-    """Search documentation — automatically traced."""
-    results = await do_search(query)
-    return {"results": results}
-```
-
----
-
-## Grafana Dashboards
-
-19 pre-provisioned dashboards in the "LLM Observability" folder.
-
-### Overview & Analysis
-
-| Dashboard | UID | Panels | Description |
-|-----------|-----|--------|-------------|
-| **Overview** | `llm-overview` | 15 | Request rate, error rate, latency P50/P95/P99, TTFT, tokens, cost, MCP tool calls |
-| **Cost & Token Analysis** | `llm-cost-tokens` | 6 | Cost deep-dive, token breakdown, top expensive models |
-| **Trace Explorer** | `llm-trace-explorer` | 4 | TraceQL search, trace detail, recent traces, span distribution |
-| **Advanced Traces** | `llm-traces-advanced` | 13 | Span metrics, service map, correlated logs, error analysis |
-
-### Per-Provider
-
-| Dashboard | UID | Panels | Filtered To |
-|-----------|-----|--------|-------------|
-| **OpenAI** | `llm-openai` | 13 | gpt-4o, gpt-4o-mini, o1, o1-mini |
-| **Anthropic** | `llm-anthropic` | 13 | claude-opus-4-6, claude-sonnet-4-6, claude-haiku-4-5 |
-| **Vertex AI** | `llm-vertex` | 13 | gemini-1.5-pro, gemini-1.5-flash, gemini-2.0-flash |
-| **AWS Bedrock** | `llm-bedrock` | 13 | All Bedrock models |
-| **Cohere** | `llm-cohere` | 13 | command-r-plus, command-r |
-
-### KPI & Quality
-
-| Dashboard | UID | Panels | Description |
-|-----------|-----|--------|-------------|
-| **KPI Scorecard** | `llm-kpi` | 25 | Availability, performance, cost efficiency, volume, cross-provider comparison |
-| **Quality of Service** | `llm-qos` | 18 | SLA compliance, error budgets, capacity planning, cost anomaly detection |
-
-### Advanced Intelligence
-
-| Dashboard | UID | Panels | Description |
-|-----------|-----|--------|-------------|
-| **Reliability Engineering** | `ai-reliability` | 20 | SLI/SLO tracking, error budget burn rate, anomaly detection, circuit breaker timeline |
-| **Cost Intelligence** | `ai-cost-intel` | 20 | Cost forecasting, budget tracking, cost anomaly detection with 2-sigma bands |
-| **Model Comparison** | `ai-model-compare` | 20 | Performance matrix, cost matrix, value scoring (throughput/cost), adoption trends |
-| **Agent & MCP Sessions** | `ai-agent-sessions` | 20 | Tool analytics, session cost, server health, session timeline |
-
-### Telemetry Signals
-
-| Signal | Metric Name | Labels | Backend |
-|--------|-------------|--------|---------|
-| Request count | `llm_requests_total` | provider, model, status | Prometheus |
-| Token usage | `llm_tokens_total` | provider, model, token_type | Prometheus |
-| Cost (USD) | `llm_cost_usd_total` | provider, model | Prometheus |
-| Request latency | `llm_request_duration_milliseconds` | provider, model | Prometheus |
-| Time to first token | `llm_ttft_milliseconds` | provider, model | Prometheus |
-| MCP tool calls | `mcp_tool_calls_total` | server_name, tool_name, status | Prometheus |
-| MCP tool latency | `mcp_tool_duration_milliseconds` | server_name, tool_name | Prometheus |
-| MCP session cost | `mcp_session_cost_usd_total` | session_id, agent_name | Prometheus |
-| Traces | GenAI semantic convention spans | - | Tempo |
-| Logs | Structured JSON | - | Loki |
-
----
-
-## Project Structure
-
-```
-llm-o11y-platform/
-├── src/
-│   ├── app.py                     # FastAPI app (1,100+ lines) - all routes, APIs, middleware
-│   ├── config.py                  # Pydantic Settings (env vars, API keys)
-│   ├── gateway/
-│   │   ├── router.py              # OpenAI-compatible /v1/chat/completions
-│   │   ├── routing.py             # 6 routing strategies (cost, latency, canary, etc.)
-│   │   ├── cache.py               # Simple + semantic response caching
-│   │   ├── rate_limiter.py        # Token bucket + sliding window rate limiting
-│   │   ├── circuit_breaker.py     # Per-provider circuit breaker (3-state)
-│   │   ├── retry.py               # Exponential backoff with jitter
-│   │   ├── virtual_keys.py        # sk-llmo-xxx key management with budgets
-│   │   └── middleware.py          # Full gateway pipeline orchestrator
-│   ├── providers/
-│   │   ├── base.py                # BaseProvider ABC + MODEL_PRICING (16 models)
-│   │   ├── openai_provider.py     # OpenAI GPT-4o, o1 adapter
-│   │   ├── anthropic_provider.py  # Anthropic Claude adapter
-│   │   ├── vertex_provider.py     # Google Gemini adapter
-│   │   ├── bedrock_provider.py    # AWS Bedrock Converse API adapter
-│   │   └── cohere_provider.py     # Cohere Command R adapter
-│   ├── prompts/
-│   │   ├── templates.py           # Versioned prompt template store
-│   │   └── router.py              # Prompt CRUD + render + test API
-│   ├── guardrails/
-│   │   ├── engine.py              # Guardrails pipeline (PII, safety, validation)
-│   │   ├── pii.py                 # 18 PII detection regex patterns
-│   │   └── router.py              # Guardrails API endpoints
-│   ├── eval/
-│   │   ├── judge.py               # LLM-as-judge scoring engine (6 criteria)
-│   │   ├── datasets.py            # Evaluation dataset management
-│   │   └── router.py              # Evaluation API endpoints
-│   ├── mcp_tracer/
-│   │   ├── router.py              # MCP tool call + session ingestion API
-│   │   └── interceptor.py         # @trace_mcp_tool decorator
-│   ├── otel/
-│   │   ├── setup.py               # OTel bootstrap (traces + 8 metrics)
-│   │   ├── llm_spans.py           # GenAI semantic convention spans
-│   │   └── mcp_spans.py           # MCP spans + session tracker
-│   ├── models/
-│   │   ├── telemetry.py           # Core data models (Request, Response, Provider enum)
-│   │   ├── keys.py                # Virtual key models
-│   │   ├── prompts.py             # Prompt template models
-│   │   └── eval.py                # Evaluation models
-│   ├── templates/                 # 11 Jinja2 HTML templates (dark theme UI)
-│   │   ├── base.html              # Master layout (1,500+ lines of CSS)
-│   │   ├── index.html             # Dashboard with SVG sparklines
-│   │   ├── playground.html        # AI playground with compare mode
-│   │   ├── prompts.html           # Prompt studio
-│   │   ├── logs.html              # Request explorer
-│   │   ├── keys.html              # Key management
-│   │   ├── eval.html              # Evaluation dashboard
-│   │   ├── guardrails.html        # Guardrails config
-│   │   ├── routing.html           # Routing builder
-│   │   ├── providers.html         # Provider status
-│   │   └── settings.html          # Settings page
-│   └── static/
-│       └── app.js                 # Frontend JavaScript (1,000+ lines)
-├── grafana/
-│   ├── dashboards/                # 19 dashboard JSON files
-│   └── provisioning/              # Auto-provisioning for datasources + dashboards
-├── k8s/
-│   └── base/                      # Kubernetes manifests (Deployment, Service, ConfigMap)
-├── docker-compose.yaml            # Full 6-service local stack
-├── Dockerfile                     # Multi-stage Python 3.11 build
-├── otel-collector-config.yaml     # OTel Collector pipeline config
-├── tempo-config.yaml              # Grafana Tempo config
-├── loki-config.yaml               # Grafana Loki config
-├── prometheus.yaml                # Prometheus scrape config
-├── pyproject.toml                 # Python project metadata + dependencies
-├── requirements.txt               # Pinned pip dependencies
-├── .env.example                   # Environment template
-└── scripts/
-    ├── test-gateway.sh            # Smoke tests
-    └── deploy-aks.sh              # AKS deployment script
-```
-
----
-
-## Configuration
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
-# LLM Provider API Keys
-OPENAI_API_KEY=sk-your-openai-key
-ANTHROPIC_API_KEY=sk-ant-your-key
-COHERE_API_KEY=your-cohere-key
-
-# Azure OpenAI
-AZURE_OPENAI_API_KEY=your-azure-key
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+# .env — copy from .env.example
+
+# ────── LLM Provider API Keys ──────
+OPENAI_API_KEY=sk-your-openai-key          # Required for OpenAI models
+ANTHROPIC_API_KEY=sk-ant-your-key          # Required for Claude models
+COHERE_API_KEY=your-cohere-key             # Required for Cohere models
+
+# ────── Azure OpenAI ──────
+AZURE_OPENAI_API_KEY=your-azure-key        # Azure-hosted OpenAI
+AZURE_OPENAI_ENDPOINT=https://xxx.openai.azure.com
 AZURE_OPENAI_API_VERSION=2024-02-01
 
-# Google Vertex AI
-VERTEX_PROJECT_ID=your-gcp-project
-VERTEX_LOCATION=us-central1
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+# ────── Google Vertex AI ──────
+VERTEX_PROJECT_ID=your-gcp-project         # GCP project ID
+VERTEX_LOCATION=us-central1                # Vertex AI region
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json
 
-# AWS Bedrock
-AWS_ACCESS_KEY_ID=your-access-key
+# ────── AWS Bedrock ──────
+AWS_ACCESS_KEY_ID=your-access-key          # AWS IAM credentials
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
 
-# Gateway
-GATEWAY_PORT=8080
-LOG_LEVEL=info
+# ────── Gateway Settings ──────
+GATEWAY_PORT=8080                          # Server port
+LOG_LEVEL=info                             # debug, info, warning, error
 ```
-
-### OpenTelemetry Config
-
-The OTel Collector pipeline is defined in `otel-collector-config.yaml`:
-
-- **Receivers**: OTLP gRPC (:4317) and HTTP (:4318)
-- **Processors**: memory_limiter (512 MiB), batch (5s/512 items), resource enrichment
-- **Exporters**: Traces to Tempo, Metrics to Prometheus (remote write), Logs to Loki
 
 ---
 
-## Deployment
+## 📁 Project Structure
 
-### Local (Docker Compose)
+```
+llm-o11y-platform/
+│
+├── src/                               # Application source (42 Python files, ~8,500 lines)
+│   ├── app.py                         # FastAPI application (1,100+ lines)
+│   ├── config.py                      # Pydantic Settings
+│   │
+│   ├── gateway/                       # 🟠 AI Gateway Engine
+│   │   ├── router.py                  #   OpenAI-compatible API
+│   │   ├── routing.py                 #   6 routing strategies
+│   │   ├── cache.py                   #   Simple + semantic caching
+│   │   ├── rate_limiter.py            #   Token bucket rate limiting
+│   │   ├── circuit_breaker.py         #   Per-provider circuit breaker
+│   │   ├── retry.py                   #   Exponential backoff
+│   │   ├── virtual_keys.py            #   Virtual key management
+│   │   └── middleware.py              #   10-step gateway pipeline
+│   │
+│   ├── providers/                     # 🟢 LLM Provider Adapters
+│   │   ├── base.py                    #   ABC + MODEL_PRICING (16 models)
+│   │   ├── openai_provider.py         #   OpenAI adapter
+│   │   ├── anthropic_provider.py      #   Anthropic adapter
+│   │   ├── vertex_provider.py         #   Google Vertex AI adapter
+│   │   ├── bedrock_provider.py        #   AWS Bedrock adapter
+│   │   └── cohere_provider.py         #   Cohere adapter
+│   │
+│   ├── prompts/                       # 🩷 Prompt Management
+│   │   ├── templates.py              #   Versioned template store
+│   │   └── router.py                 #   CRUD + render + test API
+│   │
+│   ├── guardrails/                    # 🛡️ Guardrails Engine
+│   │   ├── engine.py                  #   PII + safety + validation pipeline
+│   │   ├── pii.py                     #   18 PII detection patterns
+│   │   └── router.py                  #   Guardrails API
+│   │
+│   ├── eval/                          # 📊 Evaluation Engine
+│   │   ├── judge.py                   #   LLM-as-judge (6 criteria)
+│   │   ├── datasets.py               #   Dataset management
+│   │   └── router.py                  #   Evaluation API
+│   │
+│   ├── mcp_tracer/                    # 🔭 MCP Observability
+│   │   ├── router.py                  #   Tool call + session API
+│   │   └── interceptor.py            #   @trace_mcp_tool decorator
+│   │
+│   ├── otel/                          # 📡 OpenTelemetry
+│   │   ├── setup.py                   #   Bootstrap (traces + 8 metrics)
+│   │   ├── llm_spans.py              #   GenAI semantic convention spans
+│   │   └── mcp_spans.py              #   MCP spans + session tracker
+│   │
+│   ├── models/                        # 📦 Pydantic Data Models
+│   │   ├── telemetry.py               #   Request/Response/Provider
+│   │   ├── keys.py                    #   Virtual key models
+│   │   ├── prompts.py                 #   Prompt template models
+│   │   └── eval.py                    #   Evaluation models
+│   │
+│   ├── templates/                     # 🎨 Jinja2 HTML Templates (11 pages)
+│   └── static/                        # 📁 Frontend JavaScript
+│
+├── grafana/
+│   ├── dashboards/                    # 19 Grafana dashboard JSONs
+│   └── provisioning/                  # Auto-provisioning configs
+│
+├── k8s/base/                          # Kubernetes manifests
+├── docs/screenshots/                  # UI screenshots
+├── scripts/                           # Smoke tests + AKS deploy
+│
+├── docker-compose.yaml                # 6-service local stack
+├── Dockerfile                         # Multi-stage Python 3.11
+├── otel-collector-config.yaml         # OTel Collector pipeline
+├── tempo-config.yaml                  # Grafana Tempo config
+├── loki-config.yaml                   # Grafana Loki config
+├── prometheus.yaml                    # Prometheus scrape config
+├── pyproject.toml                     # Python project metadata
+├── requirements.txt                   # Pinned dependencies
+└── .env.example                       # Environment template
+```
+
+---
+
+## 🚢 Deployment
+
+### Docker Compose (Local / Dev)
 
 ```bash
-docker compose up -d        # Start all services
-docker compose logs -f       # Follow logs
-docker compose down          # Stop all services
+docker compose up -d          # Start all 6 services
+docker compose logs -f        # Follow logs
+docker compose down           # Stop everything
 ```
 
 ### Kubernetes (AKS)
 
 ```bash
-# Configure
 export RESOURCE_GROUP=llm-o11y-rg
 export CLUSTER_NAME=llm-o11y-aks
 export ACR_NAME=llmo11yacr
 
-# Deploy
 bash scripts/deploy-aks.sh
 ```
 
-Kubernetes manifests in `k8s/base/`:
-- `namespace.yaml` — `llm-o11y` namespace
-- `configmap.yaml` — Gateway environment config
-- `gateway-deployment.yaml` — 2-replica Deployment + ClusterIP Service
-- `otel-collector.yaml` — OTel Collector Deployment + ConfigMap + Service
-
-### Custom Deployment
-
-The gateway is a standard FastAPI application:
+### Bare Metal
 
 ```bash
 pip install -r requirements.txt
-uvicorn src.app:app --host 0.0.0.0 --port 8080
-```
-
-Set `OTEL_EXPORTER_OTLP_ENDPOINT` to point to your OTel Collector.
-
----
-
-## Development
-
-### Prerequisites
-
-- Python 3.11+
-- Docker & Docker Compose
-
-### Setup
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Run locally (without Docker)
-
-```bash
-uvicorn src.app:app --reload --port 8080
-```
-
-### Run tests
-
-```bash
-pytest tests/
-```
-
-### Lint
-
-```bash
-ruff check src/
-mypy src/
+OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317 \
+  uvicorn src.app:app --host 0.0.0.0 --port 8080
 ```
 
 ---
 
-## Tech Stack
+## 🧱 Tech Stack
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/Pydantic-2.10-E92063?logo=pydantic&logoColor=white" alt="Pydantic"/>
+  <img src="https://img.shields.io/badge/OpenTelemetry-1.29-4B0082?logo=opentelemetry&logoColor=white" alt="OTel"/>
+  <img src="https://img.shields.io/badge/Grafana-10.4-F46800?logo=grafana&logoColor=white" alt="Grafana"/>
+  <img src="https://img.shields.io/badge/Prometheus-2.51-E6522C?logo=prometheus&logoColor=white" alt="Prometheus"/>
+  <img src="https://img.shields.io/badge/Tempo-2.4-FF6C37?logo=grafana&logoColor=white" alt="Tempo"/>
+  <img src="https://img.shields.io/badge/Loki-2.9-F7D94C?logo=grafana&logoColor=black" alt="Loki"/>
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker"/>
+  <img src="https://img.shields.io/badge/OpenAI-SDK-412991?logo=openai&logoColor=white" alt="OpenAI"/>
+  <img src="https://img.shields.io/badge/Anthropic-SDK-D4A373?logo=anthropic&logoColor=white" alt="Anthropic"/>
+</p>
 
 | Layer | Technology |
 |-------|-----------|
-| **Gateway** | Python 3.11, FastAPI, Uvicorn, Pydantic |
+| **Gateway** | Python 3.11, FastAPI, Uvicorn, Pydantic, structlog |
 | **LLM SDKs** | openai, anthropic, google-cloud-aiplatform, boto3, cohere |
-| **Telemetry** | OpenTelemetry SDK + OTLP exporters |
+| **Telemetry** | OpenTelemetry SDK, OTLP gRPC exporters |
 | **Collector** | OpenTelemetry Collector Contrib 0.96.0 |
 | **Traces** | Grafana Tempo 2.4.1 |
 | **Metrics** | Prometheus 2.51.0 |
 | **Logs** | Grafana Loki 2.9.6 |
-| **Dashboards** | Grafana 10.4.1 |
-| **Frontend** | Jinja2 templates, vanilla JS, CSS Grid |
+| **Dashboards** | Grafana 10.4.1 (19 dashboards) |
+| **Frontend** | Jinja2, vanilla JavaScript, CSS Grid, SVG charts |
 | **Containers** | Docker, Docker Compose |
 | **Orchestration** | Kubernetes (AKS manifests) |
 
 ---
 
-## License
+## 🗺️ Roadmap
 
-MIT
+- **V1.0** — Unified gateway, 6 providers, OTel instrumentation, 19 dashboards, web UI, Docker Compose
+- **V1.1** — Intelligent routing (6 strategies), response caching, rate limiting, circuit breaker, virtual keys
+- **V1.2** — Prompt management, guardrails engine (PII/safety), LLM-as-judge evaluation, request logging
+- **V2.0** — Streaming support, WebSocket real-time updates, Helm chart, GitHub Actions CI/CD
+- **V2.1** — Agent framework integration, RAG pipeline tracing, embedding model support
+- **V2.2** — Multi-tenant teams, RBAC, SSO/SAML, audit logs
+- **V2.3** — Semantic caching with vector embeddings, custom guardrail plugins, webhook alerts
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👤 Author
+
+**Gopal Padidala**
+
+[![GitHub](https://img.shields.io/badge/GitHub-gpadidala-181717?logo=github)](https://github.com/gpadidala)
+[![Email](https://img.shields.io/badge/Email-gopalpadidala%40gmail.com-EA4335?logo=gmail)](mailto:gopalpadidala@gmail.com)
 
 ---
 
 <p align="center">
-  Built with FastAPI, OpenTelemetry, and the Grafana LGTM Stack
+  <strong>Built with FastAPI, OpenTelemetry, and the Grafana LGTM Stack</strong>
+  <br/>
+  <sub>42 Python files &bull; 11 HTML pages &bull; 19 Grafana dashboards &bull; ~28,000 lines of code</sub>
 </p>
