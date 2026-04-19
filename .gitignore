@@ -36,3 +36,5 @@ prometheus-data/
 loki-data/
 grafana-data/
 .data/users.json
+linkedin-post*
+docs/linkedin*
