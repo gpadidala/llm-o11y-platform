@@ -827,6 +827,68 @@ async def get_key_usage(key_id: str):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.post("/api/keys/{key_id}/rotate")
+async def rotate_virtual_key(key_id: str, grace_period_seconds: int = 3600):
+    """Rotate a virtual key — creates a new key with identical config.
+
+    The old key remains valid for ``grace_period_seconds`` (default 1 hour)
+    so callers can roll forward without downtime. After the grace period,
+    only the new key is accepted.
+
+    Returns the NEW raw key (shown once — cannot be recovered).
+    """
+    if key_manager is None:
+        raise HTTPException(status_code=501, detail="Virtual key management not available")
+    try:
+        result = key_manager.rotate_key(key_id, grace_period_seconds=grace_period_seconds)
+        if result is None:
+            raise HTTPException(status_code=404, detail=f"Key not found: {key_id}")
+        raw_key, new_vk = result
+        return {
+            "old_key_id": key_id,
+            "new_key_id": new_vk.key_id,
+            "new_key": raw_key,
+            "grace_period_seconds": grace_period_seconds,
+            "grace_expires_at": time.time() + grace_period_seconds,
+            "message": "Old key accepted until grace expires. Update clients now.",
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/keys/{key_id}/audit")
+async def get_key_audit(key_id: str, limit: int = 50):
+    """Return the recent usage audit trail for a virtual key.
+
+    Includes timestamp, IP address, endpoint, status, model, tokens, cost
+    for each request served by the key. Plus the unique IP set.
+    """
+    if key_manager is None:
+        raise HTTPException(status_code=501, detail="Virtual key management not available")
+    try:
+        events = key_manager.get_usage_events(key_id, limit=limit)
+        vk = key_manager.get_key(key_id)
+        if vk is None:
+            raise HTTPException(status_code=404, detail=f"Key not found: {key_id}")
+        return {
+            "key_id": key_id,
+            "total_events": len(vk.recent_usage),
+            "unique_ips": vk.recent_ips,
+            "unique_ip_count": len(vk.recent_ips),
+            "last_used_at": vk.last_used_at,
+            "rotation_ttl_seconds": vk.rotation_ttl_seconds,
+            "last_rotated_at": vk.last_rotated_at,
+            "rotation_grace_expires_at": vk.rotation_grace_expires_at,
+            "events": [e.model_dump() for e in events],
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 # ---------------------------------------------------------------------------
 # Routing API (/api/routing/*)
 # ---------------------------------------------------------------------------
@@ -1268,7 +1330,13 @@ async def enhanced_chat_completions(request: Request):
     if auth_header.startswith("Bearer sk-llmo-"):
         virtual_key = auth_header.replace("Bearer ", "").strip()
 
+    # Capture client IP + user agent for audit trail
+    client_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+                 or (request.client.host if request.client else ""))
+    client_ua = request.headers.get("user-agent", "")[:200]
+
     # Validate virtual key if key_manager is available and key is present
+    key_info = None
     if virtual_key and key_manager is not None:
         try:
             key_info = key_manager.validate_key(virtual_key)
@@ -1432,6 +1500,24 @@ async def enhanced_chat_completions(request: Request):
             output_preview=output_preview,
         )
         request_log_store.add(log_entry)
+
+        # --- Audit trail: record usage event on the virtual key ---
+        if key_info is not None and key_manager is not None:
+            try:
+                from src.gateway.virtual_keys import KeyUsageEvent
+                event = KeyUsageEvent(
+                    timestamp=time.time(),
+                    ip_address=client_ip,
+                    user_agent=client_ua,
+                    endpoint="/v1/chat/completions",
+                    status=status_str,
+                    model=model,
+                    tokens=total_tokens,
+                    cost_usd=cost_usd,
+                )
+                key_manager.record_usage_event(key_info.key_id, event)
+            except Exception as audit_exc:
+                logger.debug("audit_event_failed", error=str(audit_exc))
 
     # --- Build response with gateway headers ---
     headers = {

@@ -35,6 +35,19 @@ from src.gateway.rate_limiter import RateLimitConfig
 # ---------------------------------------------------------------------------
 
 
+class KeyUsageEvent(BaseModel):
+    """A single usage event recorded against a virtual key for audit purposes."""
+
+    timestamp: float
+    ip_address: str = ""
+    user_agent: str = ""
+    endpoint: str = ""
+    status: str = "success"  # "success", "error", "auth_failure"
+    model: Optional[str] = None
+    tokens: int = 0
+    cost_usd: float = 0.0
+
+
 class VirtualKey(BaseModel):
     """A single virtual API key with its configuration."""
 
@@ -62,6 +75,17 @@ class VirtualKey(BaseModel):
     tags: dict[str, str] = {}
     enabled: bool = True
     expires_at: Optional[float] = None
+
+    # Rotation
+    rotation_ttl_seconds: Optional[int] = None  # auto-rotate every N seconds
+    rotated_from_key_id: Optional[str] = None  # new key that replaced this one
+    rotation_grace_expires_at: Optional[float] = None  # old key valid until this time
+    last_rotated_at: Optional[float] = None
+
+    # Audit trail (capped ring buffer per key)
+    recent_usage: list[KeyUsageEvent] = []
+    recent_ips: list[str] = []  # unique IPs seen (last 100)
+    last_used_at: Optional[float] = None
 
 
 # ---------------------------------------------------------------------------
@@ -156,8 +180,18 @@ class VirtualKeyManager:
             if not vk.enabled:
                 return None
 
+            now = time.time()
+
             # Expiry check
-            if vk.expires_at is not None and time.time() > vk.expires_at:
+            if vk.expires_at is not None and now > vk.expires_at:
+                return None
+
+            # Rotation grace period: if this key has been rotated and the
+            # grace period has passed, reject. During grace, both old and
+            # new keys are accepted.
+            if (vk.rotated_from_key_id is not None
+                    and vk.rotation_grace_expires_at is not None
+                    and now > vk.rotation_grace_expires_at):
                 return None
 
             # Budget checks (return None if fully exhausted so the request
@@ -220,6 +254,113 @@ class VirtualKeyManager:
             vk.enabled = True
             self._save()
             return True
+
+    def rotate_key(
+        self,
+        key_id: str,
+        grace_period_seconds: int = 3600,
+    ) -> Optional[tuple[str, VirtualKey]]:
+        """Rotate a key: create a new key with identical config; keep the old
+        one valid until ``grace_period_seconds`` expires.
+
+        Returns the new raw key and its ``VirtualKey`` object. During the grace
+        window BOTH keys are accepted so callers can roll forward safely.
+        """
+        with self._lock:
+            old = self._keys.get(key_id)
+            if old is None:
+                return None
+
+            # Generate a new raw key
+            raw_key = f"{_KEY_PREFIX}{secrets.token_hex(16)}"
+            new_key_id = f"key_{secrets.token_hex(8)}"
+            hashed = hashlib.sha256(raw_key.encode()).hexdigest()
+            now = time.time()
+
+            new_vk = VirtualKey(
+                key_id=new_key_id,
+                name=old.name,
+                hashed_key=hashed,
+                created_at=now,
+                owner=old.owner,
+                team=old.team,
+                allowed_providers=old.allowed_providers,
+                allowed_models=old.allowed_models,
+                budget_usd=old.budget_usd,
+                budget_tokens=old.budget_tokens,
+                rate_limit=old.rate_limit,
+                tags=dict(old.tags),
+                enabled=True,
+                expires_at=old.expires_at,
+                rotation_ttl_seconds=old.rotation_ttl_seconds,
+                last_rotated_at=now,
+            )
+
+            # Mark the old key as rotated — accepts requests only during grace
+            old.rotated_from_key_id = new_key_id
+            old.rotation_grace_expires_at = now + grace_period_seconds
+            old.last_rotated_at = now
+
+            self._keys[new_key_id] = new_vk
+            self._key_lookup[hashed] = new_key_id
+            self._save()
+
+            return raw_key, new_vk
+
+    def record_usage_event(
+        self,
+        key_id: str,
+        event: KeyUsageEvent,
+        max_events: int = 100,
+    ) -> None:
+        """Append a usage event to a key's audit trail (capped ring buffer)."""
+        with self._lock:
+            vk = self._keys.get(key_id)
+            if vk is None:
+                return
+            vk.recent_usage.append(event)
+            if len(vk.recent_usage) > max_events:
+                vk.recent_usage = vk.recent_usage[-max_events:]
+            vk.last_used_at = event.timestamp
+            # Track unique IPs (last 100 unique)
+            if event.ip_address and event.ip_address not in vk.recent_ips:
+                vk.recent_ips.append(event.ip_address)
+                if len(vk.recent_ips) > 100:
+                    vk.recent_ips = vk.recent_ips[-100:]
+            self._save()
+
+    def get_usage_events(
+        self,
+        key_id: str,
+        limit: int = 50,
+    ) -> list[KeyUsageEvent]:
+        """Return the most recent usage events for a key."""
+        with self._lock:
+            vk = self._keys.get(key_id)
+            if vk is None:
+                return []
+            return list(reversed(vk.recent_usage[-limit:]))
+
+    def check_auto_rotations(self) -> list[str]:
+        """Find keys whose ``rotation_ttl_seconds`` has elapsed and auto-rotate
+        them. Returns a list of rotated key_ids.
+        """
+        now = time.time()
+        to_rotate: list[str] = []
+        with self._lock:
+            for key_id, vk in list(self._keys.items()):
+                if vk.rotation_ttl_seconds is None or not vk.enabled:
+                    continue
+                age = now - (vk.last_rotated_at or vk.created_at)
+                if age >= vk.rotation_ttl_seconds:
+                    to_rotate.append(key_id)
+
+        rotated: list[str] = []
+        for key_id in to_rotate:
+            result = self.rotate_key(key_id)
+            if result is not None:
+                rotated.append(key_id)
+        return rotated
 
     def delete_key(self, key_id: str) -> bool:
         """Permanently delete a key."""

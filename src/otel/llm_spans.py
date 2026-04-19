@@ -120,7 +120,13 @@ def _emit_metrics(record: LLMRequestRecord) -> None:
     error_type = _classify_error_type(record)
     streaming = "true" if record.ttft_ms is not None else "false"
 
-    common_attrs = {"provider": provider, "model": model}
+    # Base labels for all metrics
+    common_attrs: dict = {"provider": provider, "model": model}
+    # Add key_id + team if virtual key was used — enables per-key Grafana queries
+    if record.key_id:
+        common_attrs["key_id"] = record.key_id
+    if record.team:
+        common_attrs["team"] = record.team
 
     # Request count
     if otel_setup.llm_request_counter is not None:

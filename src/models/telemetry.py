@@ -105,6 +105,10 @@ class LLMRequestRecord(BaseModel):
     user_id: Optional[str] = None
     session_id: Optional[str] = None
     tags: Optional[Dict[str, str]] = None
+    # Virtual key attribution for audit + per-key metrics
+    key_id: Optional[str] = None
+    team: Optional[str] = None
+    ip_address: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
