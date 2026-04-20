@@ -1356,6 +1356,49 @@ async def enhanced_chat_completions(request: Request):
     retry_config = body.pop("retry_config", None)
     guardrails_config = body.pop("guardrails", None)
 
+    # --- Layer 3: Pre-flight context window validation ---
+    # Reject requests that will overflow the target model's context window
+    # BEFORE forwarding to the provider (saves cost + latency).
+    try:
+        from src.gateway.context_window import (
+            ContextWindowExceededError,
+            validate_context_window,
+        )
+        from src.models.telemetry import ChatMessage as _CtxMsg
+        ctx_messages = [
+            _CtxMsg(role=m.get("role", "user"), content=m.get("content", ""))
+            for m in body.get("messages", [])
+            if isinstance(m, dict)
+        ]
+        ctx_info = validate_context_window(
+            model=model,
+            messages=ctx_messages,
+            max_tokens=body.get("max_tokens"),
+        )
+        logger.debug("context_window_check_passed", **ctx_info)
+    except ContextWindowExceededError as ctx_exc:
+        logger.warning(
+            "context_window_exceeded",
+            model=model,
+            estimated_tokens=ctx_exc.estimated_tokens,
+            max_tokens=ctx_exc.max_tokens,
+            limit=ctx_exc.limit,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "context_length_exceeded",
+                "message": str(ctx_exc),
+                "model": model,
+                "estimated_input_tokens": ctx_exc.estimated_tokens,
+                "max_tokens": ctx_exc.max_tokens,
+                "context_window": ctx_exc.limit,
+            },
+        )
+    except Exception as ctx_exc:
+        # Never block a request because of a bug in the estimator
+        logger.debug("context_window_check_skipped", error=str(ctx_exc))
+
     cache_hit = False
     response_data: Optional[dict] = None
     error_msg: Optional[str] = None

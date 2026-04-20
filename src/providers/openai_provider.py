@@ -63,7 +63,24 @@ class OpenAIProvider(BaseProvider):
         completion_tokens = usage_data.completion_tokens if usage_data else 0
         total_tokens = usage_data.total_tokens if usage_data else 0
 
-        cost = self.estimate_cost(request.model, prompt_tokens, completion_tokens)
+        # Prompt cache tokens — OpenAI returns these under prompt_tokens_details
+        cache_read_tokens = 0
+        cache_creation_tokens = 0
+        if usage_data and hasattr(usage_data, "prompt_tokens_details"):
+            details = getattr(usage_data, "prompt_tokens_details", None) or {}
+            if hasattr(details, "cached_tokens"):
+                cache_read_tokens = int(getattr(details, "cached_tokens", 0) or 0)
+            elif isinstance(details, dict):
+                cache_read_tokens = int(details.get("cached_tokens", 0) or 0)
+
+        # Tiered cost breakdown (Layer 7)
+        breakdown = self.estimate_cost_breakdown(
+            request.model,
+            prompt_tokens - cache_read_tokens,  # uncached portion only
+            completion_tokens,
+            cache_creation_input_tokens=cache_creation_tokens,
+            cache_read_input_tokens=cache_read_tokens,
+        )
 
         # Build choices ---------------------------------------------------
         choices = [
@@ -87,7 +104,9 @@ class OpenAIProvider(BaseProvider):
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
+                cache_creation_input_tokens=cache_creation_tokens,
+                cache_read_input_tokens=cache_read_tokens,
             ),
             provider="openai",
-            cost_usd=cost,
+            cost_usd=breakdown["total_usd"],
         )

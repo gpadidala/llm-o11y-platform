@@ -46,6 +46,12 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: Optional[int] = None
     top_p: Optional[float] = None
     stream: Optional[bool] = False
+    # Layer-6 passthroughs (OpenAI-compatible)
+    stop: Optional[List[str]] = None  # stop sequences
+    logprobs: Optional[bool] = None  # return log-probs
+    top_logprobs: Optional[int] = None  # top-N logprobs when logprobs=True
+    seed: Optional[int] = None  # deterministic sampling (OpenAI/Anthropic)
+    response_format: Optional[Dict[str, str]] = None  # {"type": "json_object"}
 
     # Gateway extensions
     provider: Provider = Provider.OPENAI
@@ -58,6 +64,11 @@ class Usage(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+    # Prompt cache token breakdown (OpenAI + Anthropic feature — billed at discount)
+    # - cache_creation_input_tokens: tokens written to cache (25% markup on Anthropic)
+    # - cache_read_input_tokens:     tokens served from cache (~10% of base cost)
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
 
 
 class ChatChoice(BaseModel):
@@ -98,10 +109,19 @@ class LLMRequestRecord(BaseModel):
     completion_tokens: int = 0
     total_tokens: int = 0
     cost_usd: float = 0.0
+    # Cost breakdown by token tier (Layer 7)
+    input_cost_usd: float = 0.0
+    output_cost_usd: float = 0.0
+    cache_cost_usd: float = 0.0
+    # Prompt caching (OpenAI/Anthropic)
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
     latency_ms: float = 0.0
     ttft_ms: Optional[float] = None  # Time to first token (streaming)
     status: str = "success"
     error: Optional[str] = None
+    # finish_reason from provider: stop / length / content_filter / tool_calls / function_call
+    finish_reason: Optional[str] = None
     user_id: Optional[str] = None
     session_id: Optional[str] = None
     tags: Optional[Dict[str, str]] = None

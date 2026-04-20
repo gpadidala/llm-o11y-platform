@@ -74,3 +74,43 @@ class BaseProvider(ABC):
         return (prompt_tokens * input_price / 1_000_000) + (
             completion_tokens * output_price / 1_000_000
         )
+
+    @staticmethod
+    def estimate_cost_breakdown(
+        model: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        cache_creation_input_tokens: int = 0,
+        cache_read_input_tokens: int = 0,
+    ) -> dict:
+        """Return a per-component cost breakdown in USD.
+
+        Applies the industry-standard prompt-cache pricing discounts:
+          - cache_creation_input_tokens: billed at 1.25x input_price (Anthropic)
+                                          — OpenAI charges full input rate, so the
+                                            1.25x multiplier is a conservative default
+          - cache_read_input_tokens:     billed at 0.10x input_price (90% discount)
+          - prompt_tokens (uncached):    billed at input_price
+          - completion_tokens:           billed at output_price (typically 3-5x input)
+
+        Returns a dict with: input_cost_usd, output_cost_usd, cache_cost_usd, total_usd
+        """
+        pricing = MODEL_PRICING.get(model)
+        if pricing is None:
+            return {"input_cost_usd": 0.0, "output_cost_usd": 0.0, "cache_cost_usd": 0.0, "total_usd": 0.0}
+
+        input_price, output_price = pricing
+        # Uncached input tokens — prompt_tokens already EXCLUDES cached tokens in
+        # OpenAI/Anthropic responses (they're in cache_read_input_tokens separately)
+        input_cost = prompt_tokens * input_price / 1_000_000
+        output_cost = completion_tokens * output_price / 1_000_000
+        cache_write_cost = cache_creation_input_tokens * input_price * 1.25 / 1_000_000
+        cache_read_cost = cache_read_input_tokens * input_price * 0.10 / 1_000_000
+        cache_cost = cache_write_cost + cache_read_cost
+
+        return {
+            "input_cost_usd": round(input_cost, 8),
+            "output_cost_usd": round(output_cost, 8),
+            "cache_cost_usd": round(cache_cost, 8),
+            "total_usd": round(input_cost + output_cost + cache_cost, 8),
+        }

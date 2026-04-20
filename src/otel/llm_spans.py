@@ -46,7 +46,23 @@ def emit_llm_span(record: LLMRequestRecord) -> None:
         span.set_attribute("gen_ai.usage.prompt_tokens", record.prompt_tokens)
         span.set_attribute("gen_ai.usage.completion_tokens", record.completion_tokens)
         span.set_attribute("gen_ai.usage.total_tokens", record.total_tokens)
-        span.set_attribute("gen_ai.response.finish_reasons", ["stop"])
+        # Use actual finish_reason from the provider response, not a hardcoded default
+        span.set_attribute(
+            "gen_ai.response.finish_reasons",
+            [record.finish_reason] if record.finish_reason else ["unknown"],
+        )
+        # Prompt cache usage (Layer 7)
+        if record.cache_creation_input_tokens > 0:
+            span.set_attribute("gen_ai.usage.cache_creation_input_tokens", record.cache_creation_input_tokens)
+        if record.cache_read_input_tokens > 0:
+            span.set_attribute("gen_ai.usage.cache_read_input_tokens", record.cache_read_input_tokens)
+        # Cost breakdown (Layer 7)
+        if record.input_cost_usd > 0:
+            span.set_attribute("llm.cost.input_usd", record.input_cost_usd)
+        if record.output_cost_usd > 0:
+            span.set_attribute("llm.cost.output_usd", record.output_cost_usd)
+        if record.cache_cost_usd > 0:
+            span.set_attribute("llm.cost.cache_usd", record.cache_cost_usd)
 
         # -- Custom gateway attributes -------------------------------------
         span.set_attribute("llm.cost_usd", record.cost_usd)
@@ -128,14 +144,20 @@ def _emit_metrics(record: LLMRequestRecord) -> None:
     if record.team:
         common_attrs["team"] = record.team
 
-    # Request count
+    # Request count — now includes finish_reason label for cost/completion analysis
     if otel_setup.llm_request_counter is not None:
         otel_setup.llm_request_counter.add(
             1,
-            {**common_attrs, "status": status, "error_type": error_type, "streaming": streaming},
+            {
+                **common_attrs,
+                "status": status,
+                "error_type": error_type,
+                "streaming": streaming,
+                "finish_reason": record.finish_reason or "unknown",
+            },
         )
 
-    # Token usage
+    # Token usage — now includes cache tiers (Layer 3 + 7)
     if otel_setup.llm_token_counter is not None:
         if record.prompt_tokens > 0:
             otel_setup.llm_token_counter.add(
@@ -147,10 +169,32 @@ def _emit_metrics(record: LLMRequestRecord) -> None:
                 record.completion_tokens,
                 {**common_attrs, "token_type": "completion"},
             )
+        if record.cache_creation_input_tokens > 0:
+            otel_setup.llm_token_counter.add(
+                record.cache_creation_input_tokens,
+                {**common_attrs, "token_type": "cache_creation"},
+            )
+        if record.cache_read_input_tokens > 0:
+            otel_setup.llm_token_counter.add(
+                record.cache_read_input_tokens,
+                {**common_attrs, "token_type": "cache_read"},
+            )
 
-    # Cost
+    # Cost — aggregate + broken down by component (Layer 7)
     if otel_setup.llm_cost_counter is not None and record.cost_usd > 0:
         otel_setup.llm_cost_counter.add(record.cost_usd, common_attrs)
+        if record.input_cost_usd > 0:
+            otel_setup.llm_cost_counter.add(
+                record.input_cost_usd, {**common_attrs, "cost_component": "input"}
+            )
+        if record.output_cost_usd > 0:
+            otel_setup.llm_cost_counter.add(
+                record.output_cost_usd, {**common_attrs, "cost_component": "output"}
+            )
+        if record.cache_cost_usd > 0:
+            otel_setup.llm_cost_counter.add(
+                record.cache_cost_usd, {**common_attrs, "cost_component": "cache"}
+            )
 
     # Latency
     if otel_setup.llm_request_duration is not None:

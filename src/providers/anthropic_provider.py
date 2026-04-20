@@ -100,9 +100,25 @@ class AnthropicProvider(BaseProvider):
         # Extract usage --------------------------------------------------
         prompt_tokens = response.usage.input_tokens
         completion_tokens = response.usage.output_tokens
-        total_tokens = prompt_tokens + completion_tokens
+        # Prompt cache tokens — Anthropic returns these directly on usage
+        cache_creation_tokens = int(
+            getattr(response.usage, "cache_creation_input_tokens", 0) or 0
+        )
+        cache_read_tokens = int(
+            getattr(response.usage, "cache_read_input_tokens", 0) or 0
+        )
+        total_tokens = prompt_tokens + completion_tokens + cache_creation_tokens + cache_read_tokens
 
-        cost = self.estimate_cost(request.model, prompt_tokens, completion_tokens)
+        # Tiered cost breakdown (Layer 7) — Anthropic charges 1.25x for cache
+        # writes and 0.10x for cache reads. prompt_tokens is already the
+        # UNCACHED portion in Anthropic's API response.
+        breakdown = self.estimate_cost_breakdown(
+            request.model,
+            prompt_tokens,
+            completion_tokens,
+            cache_creation_input_tokens=cache_creation_tokens,
+            cache_read_input_tokens=cache_read_tokens,
+        )
 
         # Assemble response text -----------------------------------------
         content_text = ""
@@ -115,6 +131,7 @@ class AnthropicProvider(BaseProvider):
             "end_turn": "stop",
             "max_tokens": "length",
             "stop_sequence": "stop",
+            "tool_use": "tool_calls",
         }
         finish_reason = finish_reason_map.get(response.stop_reason, response.stop_reason)
 
@@ -133,7 +150,9 @@ class AnthropicProvider(BaseProvider):
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
+                cache_creation_input_tokens=cache_creation_tokens,
+                cache_read_input_tokens=cache_read_tokens,
             ),
             provider="anthropic",
-            cost_usd=cost,
+            cost_usd=breakdown["total_usd"],
         )

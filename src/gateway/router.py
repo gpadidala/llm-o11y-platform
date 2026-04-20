@@ -75,6 +75,26 @@ def _build_telemetry_record(
     Centralises record construction so both the success and error paths
     produce consistent telemetry.
     """
+    # Extract finish_reason from the first choice (if present)
+    finish_reason = None
+    if response and response.choices:
+        finish_reason = response.choices[0].finish_reason
+
+    # Compute per-component cost breakdown for metrics
+    from src.providers.base import BaseProvider
+    input_cost = output_cost = cache_cost = 0.0
+    if response and response.cost_usd:
+        breakdown = BaseProvider.estimate_cost_breakdown(
+            request.model,
+            response.usage.prompt_tokens,
+            response.usage.completion_tokens,
+            cache_creation_input_tokens=response.usage.cache_creation_input_tokens,
+            cache_read_input_tokens=response.usage.cache_read_input_tokens,
+        )
+        input_cost = breakdown["input_cost_usd"]
+        output_cost = breakdown["output_cost_usd"]
+        cache_cost = breakdown["cache_cost_usd"]
+
     return LLMRequestRecord(
         request_id=request_id,
         provider=request.provider,
@@ -85,9 +105,15 @@ def _build_telemetry_record(
         completion_tokens=response.usage.completion_tokens if response else 0,
         total_tokens=response.usage.total_tokens if response else 0,
         cost_usd=response.cost_usd if response and response.cost_usd else 0.0,
+        input_cost_usd=input_cost,
+        output_cost_usd=output_cost,
+        cache_cost_usd=cache_cost,
+        cache_creation_input_tokens=response.usage.cache_creation_input_tokens if response else 0,
+        cache_read_input_tokens=response.usage.cache_read_input_tokens if response else 0,
         latency_ms=latency_ms,
         status=status,
         error=error,
+        finish_reason=finish_reason,
         user_id=request.user_id,
         session_id=request.session_id,
         tags=request.tags,
@@ -124,6 +150,40 @@ async def chat_completions(request: ChatCompletionRequest) -> ChatCompletionResp
     )
 
     try:
+        # 0. Layer 3 — pre-flight context window validation
+        #    Reject requests that will overflow the model's context window
+        #    BEFORE we forward them to the upstream provider (saves cost + latency).
+        try:
+            from src.gateway.context_window import (
+                ContextWindowExceededError,
+                validate_context_window,
+            )
+            validate_context_window(
+                model=request.model,
+                messages=request.messages,
+                max_tokens=request.max_tokens,
+            )
+        except ContextWindowExceededError as ctx_exc:
+            log.warning(
+                "context_window_exceeded",
+                estimated_tokens=ctx_exc.estimated_tokens,
+                max_tokens=ctx_exc.max_tokens,
+                limit=ctx_exc.limit,
+            )
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "context_length_exceeded",
+                    "message": str(ctx_exc),
+                    "model": request.model,
+                    "estimated_input_tokens": ctx_exc.estimated_tokens,
+                    "max_tokens": ctx_exc.max_tokens,
+                    "context_window": ctx_exc.limit,
+                },
+            )
+        except ImportError:
+            pass  # context_window module optional
+
         # 1. Resolve provider adapter
         provider = get_provider(request.provider)
 
@@ -154,6 +214,12 @@ async def chat_completions(request: ChatCompletionRequest) -> ChatCompletionResp
         )
 
         return response
+
+    except HTTPException:
+        # Let intentionally-raised HTTPExceptions (e.g. 400 context overflow)
+        # propagate unchanged. The outer Exception handler would otherwise
+        # re-wrap them as 500.
+        raise
 
     except ProviderError as exc:
         latency_ms = (time.perf_counter() - start_time) * 1000
