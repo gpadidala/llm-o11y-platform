@@ -70,6 +70,7 @@ gateway_circuit_breaker_trips: metrics.Counter = None  # type: ignore[assignment
 gateway_circuit_breaker_state: metrics.UpDownCounter = None  # type: ignore[assignment]
 gateway_auth_failures: metrics.Counter = None  # type: ignore[assignment]
 gateway_budget_exceeded: metrics.Counter = None  # type: ignore[assignment]
+gateway_stale_keys: metrics.UpDownCounter = None  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
 # Guardrail metrics
@@ -102,7 +103,7 @@ def init_telemetry(app=None):
     global gateway_cache_hits, gateway_cache_misses, gateway_cache_tokens_saved
     global gateway_cache_cost_saved, gateway_rate_limit_rejections
     global gateway_circuit_breaker_trips, gateway_circuit_breaker_state
-    global gateway_auth_failures, gateway_budget_exceeded
+    global gateway_auth_failures, gateway_budget_exceeded, gateway_stale_keys
     global guardrail_checks, guardrail_violations, guardrail_pii_detected
     global eval_runs, eval_scores, eval_latency
 
@@ -222,6 +223,11 @@ def init_telemetry(app=None):
     gateway_circuit_breaker_state = meter.create_up_down_counter("gateway.circuit.breaker.state", description="Circuit breaker current state (0=closed,1=open,2=half_open)", unit="1")
     gateway_auth_failures = meter.create_counter("gateway.auth.failures", description="Auth failures", unit="1")
     gateway_budget_exceeded = meter.create_counter("gateway.budget.exceeded", description="Budget exceeded events", unit="1")
+    gateway_stale_keys = meter.create_up_down_counter(
+        "gateway.stale.keys",
+        description="Number of enabled virtual keys unused beyond age_bucket days (30/60/90/180)",
+        unit="1",
+    )
 
     # ---- Guardrail metrics -------------------------------------------
     guardrail_checks = meter.create_counter("guardrail.checks", description="Guardrail check executions", unit="1")

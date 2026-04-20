@@ -358,9 +358,42 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     }
     logger.info("subsystem_status", **subsystems)
 
+    # --- Stale-key sweep: every hour, publish bucket counts as metrics ---
+    # Surfaces virtual keys unused for 30/60/90/180 days as a rotation nudge.
+    # Uses env var OLLYCHAT_STALE_KEY_SWEEP_SECONDS (default 3600) so tests
+    # can run it at accelerated cadence.
+    _stale_sweep_task: asyncio.Task | None = None
+    if key_manager is not None:
+        import os as _os
+        sweep_interval = int(_os.environ.get("STALE_KEY_SWEEP_SECONDS", "3600"))
+
+        async def _stale_sweep_loop():
+            while True:
+                try:
+                    stats = key_manager.stale_key_stats()
+                    _publish_stale_key_metrics(stats)
+                    logger.info("stale_key_sweep", **stats)
+                except asyncio.CancelledError:
+                    break
+                except Exception as sweep_exc:
+                    logger.warning("stale_key_sweep_failed", error=str(sweep_exc))
+                try:
+                    await asyncio.sleep(sweep_interval)
+                except asyncio.CancelledError:
+                    break
+
+        _stale_sweep_task = asyncio.create_task(_stale_sweep_loop())
+        logger.info("stale_key_sweep_started", interval_seconds=sweep_interval)
+
     yield
 
     logger.info("shutting_down_gateway")
+    if _stale_sweep_task is not None:
+        _stale_sweep_task.cancel()
+        try:
+            await _stale_sweep_task
+        except (asyncio.CancelledError, Exception):
+            pass
     shutdown_telemetry()
 
 
@@ -779,6 +812,45 @@ async def list_virtual_keys():
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+# NOTE: Static /api/keys/stale routes MUST be declared before the dynamic
+# /api/keys/{key_id} route — otherwise FastAPI treats "stale" as a key_id.
+@app.get("/api/keys/stale")
+async def list_stale_keys(days: int = 30):
+    """Return enabled virtual keys unused for more than ``days`` days.
+
+    Useful as a rotation-nudge signal — surfaces keys that are likely
+    candidates for revocation or rotation. Sorted most-stale first.
+    """
+    if key_manager is None:
+        raise HTTPException(status_code=501, detail="Virtual key management not available")
+    try:
+        stale = key_manager.find_stale_keys(days=days)
+        return {
+            "threshold_days": days,
+            "count": len(stale),
+            "keys": stale,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/keys/stale/stats")
+async def stale_key_stats_endpoint():
+    """Return bucketed counts of stale keys (30/60/90/180-day buckets).
+
+    Also updates the ``gateway_stale_keys`` Prometheus gauge as a side
+    effect so dashboards reflect the latest state even between sweeps.
+    """
+    if key_manager is None:
+        raise HTTPException(status_code=501, detail="Virtual key management not available")
+    try:
+        stats = key_manager.stale_key_stats()
+        _publish_stale_key_metrics(stats)
+        return stats
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @app.get("/api/keys/{key_id}")
 async def get_virtual_key(key_id: str):
     """Get details for a specific virtual key."""
@@ -887,6 +959,36 @@ async def get_key_audit(key_id: str, limit: int = 50):
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+def _publish_stale_key_metrics(stats: dict) -> None:
+    """Push current stale-key counts into the OTel up_down_counter.
+
+    The gauge tracks a running delta, so we emit the DIFF from the last
+    sweep rather than the absolute value on each call.
+    """
+    try:
+        import src.otel.setup as otel_setup
+        gauge = getattr(otel_setup, "gateway_stale_keys", None)
+        if gauge is None:
+            return
+        # Track last-published values on the function itself so we can
+        # emit deltas to an up_down_counter (keeps Prometheus query sane)
+        last = getattr(_publish_stale_key_metrics, "_last", {"30": 0, "60": 0, "90": 0, "180": 0})
+        for bucket_days, key in (("30", "stale_30d"), ("60", "stale_60d"),
+                                  ("90", "stale_90d"), ("180", "stale_180d")):
+            delta = int(stats.get(key, 0)) - int(last.get(bucket_days, 0))
+            if delta != 0:
+                gauge.add(delta, {"age_bucket": bucket_days})
+        _publish_stale_key_metrics._last = {
+            "30": stats.get("stale_30d", 0),
+            "60": stats.get("stale_60d", 0),
+            "90": stats.get("stale_90d", 0),
+            "180": stats.get("stale_180d", 0),
+        }
+    except Exception:
+        # Metric emission must never block the API response
+        pass
 
 
 # ---------------------------------------------------------------------------

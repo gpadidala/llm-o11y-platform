@@ -400,6 +400,77 @@ class VirtualKeyManager:
                 results.append(vk)
             return results
 
+    def find_stale_keys(self, days: int = 30) -> list[dict]:
+        """Return enabled keys unused for more than *days* days.
+
+        A stale key is one where ``last_used_at`` is older than ``now - days``,
+        OR where ``last_used_at`` is None but ``created_at`` is older than
+        ``now - days`` (i.e. created and never used).
+
+        Each result dict includes ``key_id``, ``name``, ``owner``, ``team``,
+        ``days_idle``, ``last_used_at``, ``created_at`` — enough for a
+        rotation-nudge notification.
+        """
+        now = time.time()
+        threshold = now - (days * 86400)
+        results: list[dict] = []
+        with self._lock:
+            for vk in self._keys.values():
+                if not vk.enabled:
+                    continue  # revoked keys aren't "stale", they're dead
+                reference_ts = vk.last_used_at if vk.last_used_at is not None else vk.created_at
+                if reference_ts is None or reference_ts >= threshold:
+                    continue
+                days_idle = int((now - reference_ts) / 86400)
+                results.append({
+                    "key_id": vk.key_id,
+                    "name": vk.name,
+                    "owner": vk.owner,
+                    "team": vk.team,
+                    "days_idle": days_idle,
+                    "last_used_at": vk.last_used_at,
+                    "created_at": vk.created_at,
+                    "never_used": vk.last_used_at is None,
+                })
+        # Most-stale first so notifications prioritise oldest offenders
+        results.sort(key=lambda k: k["days_idle"], reverse=True)
+        return results
+
+    def stale_key_stats(self) -> dict:
+        """Return bucketed counts of stale keys for dashboards + metrics.
+
+        Buckets: 30, 60, 90, 180 days. A key idle 75 days counts once under
+        the 60-day bucket (highest bucket it exceeds).
+        """
+        now = time.time()
+        buckets = {30: 0, 60: 0, 90: 0, 180: 0}
+        total_enabled = 0
+        never_used = 0
+        with self._lock:
+            for vk in self._keys.values():
+                if not vk.enabled:
+                    continue
+                total_enabled += 1
+                reference_ts = vk.last_used_at if vk.last_used_at is not None else vk.created_at
+                if reference_ts is None:
+                    continue
+                if vk.last_used_at is None:
+                    never_used += 1
+                days_idle = (now - reference_ts) / 86400
+                # Increment every bucket this key exceeds (30-day bucket counts
+                # 60+, 90+, 180+ too) — makes Grafana bar charts read naturally
+                for bucket in sorted(buckets.keys()):
+                    if days_idle >= bucket:
+                        buckets[bucket] += 1
+        return {
+            "total_enabled": total_enabled,
+            "never_used": never_used,
+            "stale_30d": buckets[30],
+            "stale_60d": buckets[60],
+            "stale_90d": buckets[90],
+            "stale_180d": buckets[180],
+        }
+
     def get_budget_status(self, key_id: str) -> Optional[dict]:
         """Return budget usage details for monitoring."""
         with self._lock:
