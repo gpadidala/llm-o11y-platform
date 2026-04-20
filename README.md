@@ -695,13 +695,29 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317 \
 
 ## 🗺️ Roadmap
 
+**Released:**
 - **V1.0** — Unified gateway, 6 providers, OTel instrumentation, 19 dashboards, web UI, Docker Compose
 - **V1.1** — Intelligent routing (6 strategies), response caching, rate limiting, circuit breaker, virtual keys
 - **V1.2** — Prompt management, guardrails engine (PII/safety), LLM-as-judge evaluation, request logging
-- **V2.0** — Streaming support, WebSocket real-time updates, Helm chart, GitHub Actions CI/CD
-- **V2.1** — Agent framework integration, RAG pipeline tracing, embedding model support
-- **V2.2** — Multi-tenant teams, RBAC, SSO/SAML, audit logs
-- **V2.3** — Semantic caching with vector embeddings, custom guardrail plugins, webhook alerts
+- **V1.3** — Full trace-log-metric deep linking (Tempo ↔ Prometheus ↔ Loki), 23 metrics total, ClickHouse for 365-day analytics
+- **V1.4** — Key rotation with grace period, audit trail per key (IP + User-Agent + endpoint), `key_id` / `team` labels on every LLM metric
+- **V1.5** — 14-layer LLM API alignment: pre-flight context window validation, `finish_reason` tracking, prompt cache token accounting, tiered cost breakdown (input / output / cache)
+- **V1.6** — Stale-key rotation-nudge sweep: `gateway_stale_keys{age_bucket}` metric, `/api/keys/stale` endpoint, Grafana panel, hourly background scheduler
+
+**In Progress — V2.2 (Enterprise Regulated-Environment Readiness):**
+- **[IN DESIGN]** Auto-disable policy for stale keys (configurable: notify-only / soft-disable / hard-disable)
+- **[IN DESIGN]** Webhook notifications for rotation nudges + auto-disable events
+- **[PLANNED]** Org-level rate limiting (hierarchical buckets: org → team → key)
+- **[PLANNED]** SSO / SAML via OIDC, mapped to Admin / Manager / Viewer roles
+- **[PLANNED]** Multi-tenant isolation (per-tenant data segregation + budget walls)
+
+**Planned — V2.3+:**
+- **V2.3** — Streaming support, WebSocket real-time updates, Helm chart, GitHub Actions CI/CD
+- **V2.4** — Agent framework integration (LangGraph / CrewAI), RAG pipeline tracing, embedding model support
+- **V2.5** — Semantic caching with vector embeddings, custom guardrail plugins, batch API support
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full design + status of every v2.2 feature.
+See [`CHANGELOG.md`](CHANGELOG.md) for release-by-release details.
 
 ---
 
