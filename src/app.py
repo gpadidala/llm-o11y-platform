@@ -358,14 +358,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     }
     logger.info("subsystem_status", **subsystems)
 
-    # --- Stale-key sweep: every hour, publish bucket counts as metrics ---
-    # Surfaces virtual keys unused for 30/60/90/180 days as a rotation nudge.
-    # Uses env var OLLYCHAT_STALE_KEY_SWEEP_SECONDS (default 3600) so tests
-    # can run it at accelerated cadence.
+    # --- Stale-key sweep: every hour, publish bucket counts + apply policy ---
+    # Surfaces virtual keys unused for 30/60/90/180 days as a rotation nudge
+    # and escalates through notify → soft-disable → hard-disable per config.
+    # Sweep cadence: STALE_KEY_SWEEP_SECONDS (default 3600).
     _stale_sweep_task: asyncio.Task | None = None
     if key_manager is not None:
         import os as _os
+        from src.gateway.stale_policy import StalePolicyConfig, apply_stale_policy
+
         sweep_interval = int(_os.environ.get("STALE_KEY_SWEEP_SECONDS", "3600"))
+        stale_policy_config = StalePolicyConfig.from_env()
+        app.state.stale_policy_config = stale_policy_config
+        logger.info("stale_key_policy_loaded", **stale_policy_config.as_dict())
 
         async def _stale_sweep_loop():
             while True:
@@ -373,6 +378,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     stats = key_manager.stale_key_stats()
                     _publish_stale_key_metrics(stats)
                     logger.info("stale_key_sweep", **stats)
+                    # Policy runs synchronously but sends webhooks via httpx
+                    # (sync). Keep the sweep task non-blocking by running in
+                    # a thread so webhook latency doesn't block the loop.
+                    summary = await asyncio.to_thread(
+                        apply_stale_policy, key_manager, stale_policy_config
+                    )
+                    if summary.notified or summary.soft_disabled or summary.hard_disabled:
+                        logger.info("stale_policy_applied", **summary.as_dict())
                 except asyncio.CancelledError:
                     break
                 except Exception as sweep_exc:
@@ -849,6 +862,35 @@ async def stale_key_stats_endpoint():
         return stats
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/keys/stale/policy")
+async def stale_key_policy_endpoint():
+    """Return the active stale-key policy (loaded from env at startup).
+
+    Config is immutable within a process; change env vars + restart to update.
+    """
+    config = getattr(app.state, "stale_policy_config", None)
+    if config is None:
+        from src.gateway.stale_policy import StalePolicyConfig
+        config = StalePolicyConfig.from_env()
+    return config.as_dict()
+
+
+@app.post("/api/keys/stale/policy/run")
+async def run_stale_policy_now():
+    """Trigger an on-demand policy evaluation. Returns the action summary.
+
+    Exposed for ops use: `curl -X POST ...` after seeding test data, or from
+    the UI when an admin wants to escalate immediately rather than waiting
+    for the next hourly sweep.
+    """
+    if key_manager is None:
+        raise HTTPException(status_code=501, detail="Virtual key management not available")
+    from src.gateway.stale_policy import StalePolicyConfig, apply_stale_policy
+    config = getattr(app.state, "stale_policy_config", None) or StalePolicyConfig.from_env()
+    summary = await asyncio.to_thread(apply_stale_policy, key_manager, config)
+    return summary.as_dict()
 
 
 @app.get("/api/keys/{key_id}")

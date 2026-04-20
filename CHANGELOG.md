@@ -4,6 +4,49 @@ All notable changes to the LLM O11y Platform. Dates in ISO-8601.
 
 ---
 
+## [1.7.0] — 2026-04-20 · Stale-Key Auto-Disable Policy
+
+**Feature:** closes the design question left open in v1.6 — what to *do*
+with stale keys. Tiered escalation with safe defaults; stricter policies
+opt-in via env vars.
+
+### Added
+- `src/gateway/stale_policy.py` — env-driven `StalePolicyConfig` and
+  `apply_stale_policy(manager, config)` tiered escalation
+- `needs_review`, `soft_disabled_at`, `last_stale_notified_at` fields on
+  `VirtualKey` (soft-disabled keys stay functional — UI nudges the owner)
+- `VirtualKeyManager.mark_needs_review()`, `clear_needs_review()`,
+  `mark_stale_notified()` helpers
+- `GET /api/keys/stale/policy` — inspect active thresholds + exemptions
+- `POST /api/keys/stale/policy/run` — on-demand evaluation (bypass the hourly sweep)
+- Policy application wired into the existing sweep task (runs in a thread
+  so webhook latency doesn't block the loop)
+- Generic JSON webhook payload with `policy` field (`notify` / `soft_disable` /
+  `hard_disable`) — Slack/Sentinel/PagerDuty-friendly
+
+### Default policy (can be overridden per deployment)
+- 30 days idle → **notify** (log + metric + optional webhook)
+- 60 days idle → **soft-disable** (flag as `needs_review`, key still works)
+- 90+ days idle → **hard-disable** (opt-in only, default 0 = off)
+
+### Env vars
+- `STALE_KEY_NOTIFY_AFTER_DAYS` (default 30)
+- `STALE_KEY_SOFT_DISABLE_AFTER_DAYS` (default 60)
+- `STALE_KEY_HARD_DISABLE_AFTER_DAYS` (default 0 = opt-in)
+- `STALE_KEY_NOTIFY_COOLDOWN_HOURS` (default 24 — dedupe webhook spam)
+- `STALE_KEY_EXEMPT_TAGS` — comma-separated `tag` or `tag=value`
+- `STALE_KEY_EXEMPT_OWNERS` — comma-separated owner names
+- `STALE_KEY_WEBHOOK_URL` — HTTPS endpoint for JSON notifications
+
+### Design
+- Default is deliberately **not** auto-revoke: a quarterly batch job against
+  a scheduled key shouldn't break silently because nobody logged in for 60 days
+- Soft-disable is the sweet spot — flag for review without breaking traffic
+- Exemptions apply to ALL tiers (not just hard-disable) so flagged ops keys
+  don't even trigger notification noise
+
+---
+
 ## [1.6.0] — 2026-04-20 · Stale-Key Rotation-Nudge
 
 **Feature:** proactive detection of virtual keys that haven't been used in

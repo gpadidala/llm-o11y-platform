@@ -87,6 +87,11 @@ class VirtualKey(BaseModel):
     recent_ips: list[str] = []  # unique IPs seen (last 100)
     last_used_at: Optional[float] = None
 
+    # Stale-key policy state
+    needs_review: bool = False  # soft-disable flag — key still works but UI nudges
+    soft_disabled_at: Optional[float] = None  # when soft-disable was applied
+    last_stale_notified_at: Optional[float] = None  # dedupe webhook notifications
+
 
 # ---------------------------------------------------------------------------
 # Key manager
@@ -361,6 +366,38 @@ class VirtualKeyManager:
             if result is not None:
                 rotated.append(key_id)
         return rotated
+
+    def mark_needs_review(self, key_id: str, reason: str = "stale") -> bool:
+        """Flag a key for review (soft-disable). Key remains valid for requests."""
+        with self._lock:
+            vk = self._keys.get(key_id)
+            if vk is None or vk.needs_review:
+                return False
+            vk.needs_review = True
+            vk.soft_disabled_at = time.time()
+            self._save()
+            return True
+
+    def clear_needs_review(self, key_id: str) -> bool:
+        """Clear the needs_review flag (e.g. after owner acknowledges or uses the key)."""
+        with self._lock:
+            vk = self._keys.get(key_id)
+            if vk is None:
+                return False
+            vk.needs_review = False
+            vk.soft_disabled_at = None
+            self._save()
+            return True
+
+    def mark_stale_notified(self, key_id: str) -> bool:
+        """Record that a stale-key notification was emitted for this key."""
+        with self._lock:
+            vk = self._keys.get(key_id)
+            if vk is None:
+                return False
+            vk.last_stale_notified_at = time.time()
+            self._save()
+            return True
 
     def delete_key(self, key_id: str) -> bool:
         """Permanently delete a key."""

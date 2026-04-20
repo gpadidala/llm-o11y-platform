@@ -703,10 +703,9 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317 \
 - **V1.4** — Key rotation with grace period, audit trail per key (IP + User-Agent + endpoint), `key_id` / `team` labels on every LLM metric
 - **V1.5** — 14-layer LLM API alignment: pre-flight context window validation, `finish_reason` tracking, prompt cache token accounting, tiered cost breakdown (input / output / cache)
 - **V1.6** — Stale-key rotation-nudge sweep: `gateway_stale_keys{age_bucket}` metric, `/api/keys/stale` endpoint, Grafana panel, hourly background scheduler
+- **V1.7** — Stale-key auto-disable policy: tiered notify (30d) → soft-disable (60d) → hard-disable (90d, opt-in), generic JSON webhook, exempt-tag / exempt-owner escape hatch
 
 **In Progress — V2.2 (Enterprise Regulated-Environment Readiness):**
-- **[IN DESIGN]** Auto-disable policy for stale keys (configurable: notify-only / soft-disable / hard-disable)
-- **[IN DESIGN]** Webhook notifications for rotation nudges + auto-disable events
 - **[PLANNED]** Org-level rate limiting (hierarchical buckets: org → team → key)
 - **[PLANNED]** SSO / SAML via OIDC, mapped to Admin / Manager / Viewer roles
 - **[PLANNED]** Multi-tenant isolation (per-tenant data segregation + budget walls)

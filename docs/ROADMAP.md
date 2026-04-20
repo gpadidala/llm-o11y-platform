@@ -20,33 +20,50 @@ controls are compliance prerequisites.
 | Manual rotation with grace period | ✅ | `POST /api/keys/{id}/rotate?grace_period_seconds=3600` |
 | `rotation_ttl_seconds` for auto-rotation | ✅ | `check_auto_rotations()` — not yet wired to scheduler |
 | **Stale-key detection (rotation nudge)** | ✅ | v1.6 shipped — `GET /api/keys/stale`, `gateway_stale_keys{age_bucket}`, hourly sweep |
-| **Auto-disable policy** | 🚧 | See design note below |
-| Webhook notifications for stale keys | 🚧 | Design alongside auto-disable |
+| **Auto-disable policy** | ✅ | v1.7 shipped — tiered notify → soft-disable → hard-disable |
+| Webhook notifications for stale keys | ✅ | v1.7 shipped — `STALE_KEY_WEBHOOK_URL`, generic JSON payload |
 | Scheduled auto-rotation wiring | 📋 | Hook `check_auto_rotations()` into the hourly sweep |
 
-#### Design question — auto-disable policy (asked by Neeraj Kumar Singh B. on LinkedIn)
+#### Auto-disable policy — shipped in v1.7 (design discussion below)
+
+Design question originally raised by **Neeraj Kumar Singh B.** on LinkedIn:
 
 > "In regulated environments, do you typically see auto-disable after N days,
 > or just a notification to the owner? Auto-disable is stricter but could
 > break a quarterly batch job running against a scheduled key."
 
-Proposed config surface:
+**Shipped decision — tiered escalation with safe defaults:**
 
-```yaml
-stale_key_policy:
-  notify_after_days: 30       # emit webhook + metric
-  soft_disable_after_days: 60 # mark as needs_review in UI, still valid
-  hard_disable_after_days: 90 # set enabled=false (opt-in per env)
-  exclusions:
-    - tag: "scheduled-batch"   # keys labelled this skip auto-disable
-    - owner: "ops-team"
+| Threshold | Action | Default |
+|---|---|---|
+| 30 days idle | **Notify** (log + metric + optional webhook) | ✅ always on |
+| 60 days idle | **Soft-disable** (flag `needs_review`, key still works) | ✅ on |
+| 90+ days idle | **Hard-disable** (`enabled=false`) | ❌ opt-in only |
+
+Soft-disable is the sweet spot: the key keeps working so scheduled batch
+jobs don't break, but the UI surfaces `needs_review=true` so the owner
+gets pushed to rotate. Hard-disable is opt-in for orgs that want it.
+
+Config surface (env vars, see [`.env.example`](../.env.example)):
+
+```bash
+STALE_KEY_NOTIFY_AFTER_DAYS=30        # 0 disables tier
+STALE_KEY_SOFT_DISABLE_AFTER_DAYS=60
+STALE_KEY_HARD_DISABLE_AFTER_DAYS=0   # set to 90 to enable
+STALE_KEY_NOTIFY_COOLDOWN_HOURS=24    # webhook dedupe
+STALE_KEY_EXEMPT_TAGS=scheduled-batch,tier=dr
+STALE_KEY_EXEMPT_OWNERS=ops-team,platform
+STALE_KEY_WEBHOOK_URL=https://hooks.slack.com/...
 ```
 
-**Open items:**
-- ❓ Default policy: `notify-only` or `soft-disable`? Leaning notify-only for v2.2,
-  add soft-disable in v2.3 once we have real customer feedback
-- ❓ Webhook payload schema — slack-formatted? generic JSON? both?
-- ❓ Grace period before hard-disable — 7 days after last notification?
+**Closed items:**
+- ✅ Default policy: `notify + soft-disable` (not auto-revoke) — chose the
+  safer posture; regulated environments opt into hard-disable with one env var
+- ✅ Webhook payload: **generic JSON** (keys: `event`, `policy`, `key_id`, `name`,
+  `owner`, `team`, `days_idle`, `threshold_days`, `never_used`, `last_used_at`,
+  `created_at`, `timestamp`) — consumers format as needed downstream
+- ✅ Notification cooldown: 24 hours by default, tunable via
+  `STALE_KEY_NOTIFY_COOLDOWN_HOURS`
 
 ### 2. Audit Trail (shipped)
 
